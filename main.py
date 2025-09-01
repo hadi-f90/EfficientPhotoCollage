@@ -22,6 +22,16 @@ def main(page: ft.Page):
     # Checkbox for CMYK mode
     cmyk_mode = ft.Checkbox(label="Use CMYK color profile for printing (saves as TIFF)", value=False)
 
+    # Checkbox and input for padding
+    padding_enabled = ft.Checkbox(label="Add padding border around photos for easier cutting", value=False)
+    padding_size = ft.TextField(label="Padding size (pixels)", value="10", width=150, disabled=True)
+
+    def on_padding_toggle(e):
+        padding_size.disabled = not padding_enabled.value
+        page.update()
+
+    padding_enabled.on_change = on_padding_toggle
+
     # Grid view for uploaded photo previews
     def get_grid_params():
         # Adjust grid parameters based on screen width
@@ -195,10 +205,13 @@ def main(page: ft.Page):
 
     # Function to find minimal canvas for a given ratio (height / width)
     def find_min_canvas(orig_sizes, num_images, ratio):
-        min_side_req = max(min(w * s, h * s) for (w, h), s in zip(orig_sizes, scale_factors))
-        max_side_req = max(max(w * s, h * s) for (w, h), s in zip(orig_sizes, scale_factors))
+        # Get padding value
+        padding = int(padding_size.value) if padding_enabled.value and padding_size.value.isdigit() else 0
+        padding = max(0, padding)  # Ensure non-negative
+        min_side_req = max(min(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors))
+        max_side_req = max(max(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors))
         low = max(min_side_req, math.ceil(max_side_req / ratio))
-        high = sum(max(w * s, h * s) for (w, h), s in zip(orig_sizes, scale_factors)) * 2  # Upper bound
+        high = sum(max(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors)) * 2  # Upper bound
 
         min_width = float('inf')
         min_height = float('inf')
@@ -211,7 +224,8 @@ def main(page: ft.Page):
             for i, (w, h) in enumerate(orig_sizes):
                 scaled_w = max(1, int(w * scale_factors[i]))
                 scaled_h = max(1, int(h * scale_factors[i]))
-                packer.add_rect(scaled_w, scaled_h, rid=i)
+                # Add padding to dimensions for packing
+                packer.add_rect(scaled_w + 2 * padding, scaled_h + 2 * padding, rid=i)
             packer.add_bin(cw, ch)
             packer.pack()
             if len(packer.rect_list()) == num_images:
@@ -242,6 +256,10 @@ def main(page: ft.Page):
             page.update()
             return None, None, None
 
+        # Get padding value
+        padding = int(padding_size.value) if padding_enabled.value and padding_size.value.isdigit() else 0
+        padding = max(0, padding)  # Ensure non-negative
+
         # Find minimal canvas for portrait (tall) orientation
         portrait_w, portrait_h = find_min_canvas(orig_sizes, num_images, a_series_ratio)
         portrait_area = portrait_w * portrait_h if portrait_w != float('inf') else float('inf')
@@ -270,7 +288,8 @@ def main(page: ft.Page):
         for i, (w, h) in enumerate(orig_sizes):
             scaled_w = max(1, int(w * scale_factors[i]))
             scaled_h = max(1, int(h * scale_factors[i]))
-            packer.add_rect(scaled_w, scaled_h, rid=i)
+            # Add padding to dimensions for packing
+            packer.add_rect(scaled_w + 2 * padding, scaled_h + 2 * padding, rid=i)
         packer.add_bin(canvas_width, canvas_height)
         packer.pack()
 
@@ -280,7 +299,7 @@ def main(page: ft.Page):
             return None, None, None
 
         # Calculate unused area percentage
-        total_image_area = sum(w * h * s**2 for (w, h), s in zip(orig_sizes, scale_factors))
+        total_image_area = sum((w * s + 2 * padding) * (h * s + 2 * padding) for (w, h), s in zip(orig_sizes, scale_factors))
         canvas_area = canvas_width * canvas_height
         if canvas_area > 0:
             unused_pct = ((canvas_area - total_image_area) / canvas_area) * 100
@@ -291,7 +310,7 @@ def main(page: ft.Page):
         mode = "CMYK" if cmyk_mode.value else "RGB"
         canvas = Image.new(mode, (int(canvas_width), int(canvas_height)), (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0))
 
-        # Place images on canvas
+        # Place images on canvas with padding
         all_rects = packer.rect_list()
         for b, x, y, w, h, rid in all_rects:
             img = images[rid]
@@ -299,11 +318,18 @@ def main(page: ft.Page):
             orig_w, orig_h = orig_sizes[rid]
             scaled_w = max(1, int(orig_w * scale_factors[rid]))
             scaled_h = max(1, int(orig_h * scale_factors[rid]))
-            if w == scaled_h and h == scaled_w:
+            if w == scaled_h + 2 * padding and h == scaled_w + 2 * padding:
                 img = img.rotate(90, expand=True)
-            # Resize image to scaled dimensions for pasting
-            img_resized = img.resize((w, h), Image.Resampling.LANCZOS)
-            canvas.paste(img_resized, (x, y))
+                scaled_w, scaled_h = scaled_h, scaled_w  # Swap dimensions for rotated image
+            # Resize image to scaled dimensions (without padding)
+            img_resized = img.resize((scaled_w, scaled_h), Image.Resampling.LANCZOS)
+            # Create a new image with padding
+            padded_w = scaled_w + 2 * padding
+            padded_h = scaled_h + 2 * padding
+            padded_img = Image.new(mode, (padded_w, padded_h), (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0))
+            padded_img.paste(img_resized, (padding, padding))
+            # Paste padded image onto canvas
+            canvas.paste(padded_img, (x, y))
 
         # Generate unique filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -343,6 +369,8 @@ def main(page: ft.Page):
                             controls=[
                                 ft.Text("Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."),
                                 cmyk_mode,
+                                padding_enabled,
+                                padding_size,
                                 ft.Text("Uploaded Photos:"),
                                 ft.Container(
                                     content=photo_grid,
