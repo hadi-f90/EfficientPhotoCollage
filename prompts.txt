@@ -88,3 +88,7 @@ Also, change the file naming policy of the app to avoind overwriting on previous
 
 ---------
 please make the whole window scrollable since some of the controls e.g. generate button go beyond viewable window area when resizing
+
+==========
+
+The print button doesn't work trigger printing dialogue window. either fix it or remove it.

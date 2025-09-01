@@ -321,7 +321,7 @@ def main(page: ft.Page):
                 # Update preview
                 collage_preview.src = preview_path
                 collage_preview.visible = True
-                status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%"
+                status.value = f"Layout generated and saved as '{output_path}'. Open this file in an image viewer to print."
                 page.update()
             return output_path, canvas_width, canvas_height
         except Exception as ex:
@@ -331,15 +331,6 @@ def main(page: ft.Page):
 
     # Generate button
     generate_button = ft.ElevatedButton("Generate A-Series Layout", on_click=lambda e: generate_layout())
-
-    # Print button
-    def print_collage(e):
-        output_path, canvas_width, canvas_height = generate_layout(save_only=True)
-        if output_path:
-            status.value = f"Collage saved as '{output_path}'. Please open this file in an image viewer or PDF viewer to print."
-            page.update()
-
-    print_button = ft.ElevatedButton("Print Collage", on_click=print_collage)
 
     # Responsive layout wrapped in a scrollable column
     page.add(
@@ -369,7 +360,6 @@ def main(page: ft.Page):
                                     alignment=ft.MainAxisAlignment.CENTER
                                 ),
                                 generate_button,
-                                print_button,
                                 status,
                             ],
                             alignment=ft.MainAxisAlignment.START,
