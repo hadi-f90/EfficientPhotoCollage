@@ -107,7 +107,7 @@ def main(page: ft.Page):
 
     # Add more button
     add_button = ft.IconButton(
-        icon=ft.icons.ADD,
+        icon=ft.Icons.ADD,
         on_click=lambda _: (
             set_append_mode(True),
             file_picker.pick_files(allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"]),
@@ -128,7 +128,7 @@ def main(page: ft.Page):
         collage_preview.visible = False
         page.update()
 
-    trash_button = ft.IconButton(icon=ft.icons.DELETE, on_click=delete_selected)
+    trash_button = ft.IconButton(icon=ft.Icons.DELETE, on_click=delete_selected)
 
     # Function to find minimal canvas for a given ratio (height / width)
     def find_min_canvas(orig_sizes, num_images, ratio):
@@ -280,7 +280,7 @@ def main(page: ft.Page):
                 ft.Container(
                     content=photo_grid,
                     height=300,  # Fixed height to keep controls visible
-                    border=ft.border.all(1, ft.colors.BLACK),
+                    border=ft.border.all(1, ft.Colors.BLACK),
                     border_radius=5,
                 ),
                 ft.Row([

@@ -47,3 +47,6 @@ Can you make photo previews be shown in a scrollable grid. current state make ot
 =================
 
 finally I want this collage be printable can you add a print button along with an option for output in cmyk mode -which would change color profile of photos into cmyk rather than rgb
+
+===========
+flet warns me the It doen't use icons and colors anymore. Rather following PEP convetions it uses Icons and Colors instead. please fix this issue.
