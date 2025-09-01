@@ -8,8 +8,7 @@ from rectpack import newPacker
 def main(page: ft.Page):
     page.title = "Photo Arranger for A-Series Printing with Rectpack"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.window.width = 800
-    page.window.height = 600
+    page.padding = 10
     page.update()
 
     # List to hold loaded images, their file paths, and scaling factors
@@ -26,10 +25,20 @@ def main(page: ft.Page):
     )
 
     # Grid view for uploaded photo previews
+    def get_grid_params():
+        # Adjust grid parameters based on screen width
+        screen_width = page.width
+        if screen_width < 600:  # Mobile
+            return 2, 120  # 2 columns, smaller images
+        if screen_width < 900:  # Tablet
+            return 3, 130
+        return 4, 150
+
+    runs_count, max_extent = get_grid_params()
     photo_grid = ft.GridView(
         expand=True,
-        runs_count=4,  # Number of columns
-        max_extent=150,  # Increased for checkbox and scale text
+        runs_count=runs_count,
+        max_extent=max_extent,
         spacing=10,
         run_spacing=10,
         padding=10,
@@ -40,8 +49,8 @@ def main(page: ft.Page):
     a_series_ratio = math.sqrt(2)
     collage_preview = ft.Image(
         src="",
-        width=300 / a_series_ratio,  # Match upload area height, adjusted for aspect ratio
-        height=300,  # Same height as upload area
+        width=page.width * 0.4 / a_series_ratio,  # 40% of screen width, adjusted for aspect ratio
+        height=page.height * 0.4,  # 40% of screen height
         fit=ft.ImageFit.CONTAIN,
         visible=False,
     )
@@ -79,8 +88,8 @@ def main(page: ft.Page):
                             content=ft.Column([
                                 ft.Image(
                                     src=f.path,
-                                    width=100,
-                                    height=100,
+                                    width=max_extent - 20,
+                                    height=max_extent - 20,
                                     fit=ft.ImageFit.CONTAIN,
                                     border_radius=5,
                                 ),
@@ -332,47 +341,63 @@ def main(page: ft.Page):
 
     print_button = ft.ElevatedButton("Print Collage", on_click=print_collage)
 
-    # Layout with two columns: left for controls and grid, right for collage preview
+    # Responsive layout
     page.add(
-        ft.Row([
-            ft.Column([
-                ft.Text(
-                    "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
-                ),
-                cmyk_mode,
-                ft.Text("Uploaded Photos:"),
-                ft.Container(
-                    content=photo_grid,
-                    height=300,  # Fixed height to keep controls visible
-                    border=ft.border.all(1, ft.Colors.BLACK),
-                    border_radius=5,
-                ),
-                ft.Row([
-                    trash_button,
-                    add_button,
-                    increase_button,
-                    decrease_button,
-                    ],
-                    alignment=ft.MainAxisAlignment.CENTER,
-                ),
-                generate_button,
-                print_button,
-                status,
+        ft.ResponsiveRow([
+            ft.Column(
+                col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
+                controls=[
+                    ft.Text(
+                        "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
+                    ),
+                    cmyk_mode,
+                    ft.Text("Uploaded Photos:"),
+                    ft.Container(
+                        content=photo_grid,
+                        height=page.height * 0.4,  # 40% of screen height
+                        border=ft.border.all(1, ft.Colors.BLACK),
+                        border_radius=5,
+                    ),
+                    ft.Row([
+                        trash_button,
+                        add_button,
+                        increase_button,
+                        decrease_button,
+                        ],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                    ),
+                    generate_button,
+                    print_button,
+                    status,
                 ],
                 alignment=ft.MainAxisAlignment.START,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                expand=1,
             ),
-            ft.Column([
-                ft.Text("Collage Preview:"),
-                collage_preview,
+            ft.Column(
+                col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
+                controls=[
+                    ft.Text("Collage Preview:"),
+                    collage_preview,
                 ],
                 alignment=ft.MainAxisAlignment.START,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                expand=1,
             ),],
             alignment=ft.MainAxisAlignment.CENTER,
             vertical_alignment=ft.CrossAxisAlignment.START,
     ))
+
+    # Update layout on window resize
+    def on_resize(e):
+        runs_count, max_extent = get_grid_params()
+        photo_grid.runs_count = runs_count
+        photo_grid.max_extent = max_extent
+        for ctrl in photo_grid.controls:
+            ctrl.content.controls[0].width = max_extent - 20
+            ctrl.content.controls[0].height = max_extent - 20
+        collage_preview.width = page.width * 0.4 / a_series_ratio
+        collage_preview.height = page.height * 0.4
+        page.update()
+
+    page.on_resize = on_resize
 
 ft.app(target=main)
