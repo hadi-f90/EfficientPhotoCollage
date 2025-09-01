@@ -16,6 +16,18 @@ def main(page: ft.Page):
     # Status text
     status = ft.Text("")
 
+    # List view for uploaded photo previews
+    photo_list = ft.ListView(expand=True, spacing=10, padding=10, auto_scroll=True)
+
+    # Image control for previewing the final collage
+    collage_preview = ft.Image(
+        src="",
+        width=300,
+        height=424,  # Scaled to maintain A-series aspect ratio (sqrt(2))
+        fit=ft.ImageFit.CONTAIN,
+        visible=False,
+    )
+
     # File picker for multiple images
     file_picker = ft.FilePicker(on_result=handle_upload)
     page.overlay.append(file_picker)
@@ -23,15 +35,26 @@ def main(page: ft.Page):
     def handle_upload(e: ft.FilePickerResultEvent):
         if e.files:
             images.clear()
+            photo_list.controls.clear()
             for f in e.files:
                 try:
                     img = Image.open(f.path)
                     images.append(img)
+                    # Add image preview to list view
+                    photo_list.controls.append(
+                        ft.Image(
+                            src=f.path,
+                            width=100,
+                            height=100,
+                            fit=ft.ImageFit.CONTAIN,
+                            border_radius=5,
+                    ))
                 except Exception as ex:
                     status.value = f"Error loading {f.name}: {str(ex)}"
                     page.update()
                     return
             status.value = f"Loaded {len(images)} images successfully."
+            collage_preview.visible = False
             page.update()
 
     # Button to pick files
@@ -43,7 +66,6 @@ def main(page: ft.Page):
 
     # Function to find minimal canvas for a given ratio (height / width)
     def find_min_canvas(orig_sizes, num_images, ratio):
-        # Calculate requirements
         min_side_req = max(min(w, h) for w, h in orig_sizes)
         max_side_req = max(max(w, h) for w, h in orig_sizes)
         low = max(min_side_req, math.ceil(max_side_req / ratio))
@@ -150,6 +172,9 @@ def main(page: ft.Page):
         output_path = "a_series_photo_layout.png"
         try:
             canvas.save(output_path)
+            # Update preview
+            collage_preview.src = output_path
+            collage_preview.visible = True
             status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%"
         except Exception as ex:
             status.value = f"Error saving file: {str(ex)}"
@@ -165,11 +190,14 @@ def main(page: ft.Page):
                 "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
             ),
             pick_button,
+            ft.Text("Uploaded Photos:"),
+            photo_list,
             generate_button,
+            ft.Text("Collage Preview:"),
+            collage_preview,
             status,
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
     ))
 
-ft.app(target=main)
