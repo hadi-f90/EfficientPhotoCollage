@@ -103,3 +103,10 @@ UnboundLocalError: cannot access local variable 'handle_upload' where it is not 
 Also, I want the app show the percentage of area covered by each photo on each photo
 ---
 Good, but the percentage is seemingly shown beneath each photo, can you make it over or below each photo and above check mark?
+----
+It seems percentage calculations is not correct. double check it. Also, expand preview grid so that the percentage text and checkbox and other photo previews do not run into on another.
+------------
+Can you change the position of percentage text  and checkbox from below the photo over the same photos using probably using stack element with a semi transprant background for text? I think it will get more tidy.
+-----
+I got error when loading photos:
+Error loading ***.jpg: Colors.with_opacity() missing one required positional argument 'color'
