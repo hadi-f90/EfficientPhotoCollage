@@ -39,3 +39,7 @@ under the preview pan add a trash icon which deletes the photo from list of phot
 
 ==============
 Currently the app doesn't account for already added photos and duplicates them. can you resolve this issue
+
+=====================
+
+Can you make photo previews be shown in a scrollable grid. current state make other controls e.g. generate button go out of viewable window and screen area.

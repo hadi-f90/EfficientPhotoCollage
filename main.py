@@ -8,17 +8,26 @@ from rectpack import newPacker
 def main(page: ft.Page):
     page.title = "Photo Arranger for A-Series Printing with Rectpack"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.window.width = 800
+    page.window.height = 600
     page.update()
 
-    # List to hold loaded images and their filenames
+    # List to hold loaded images
     images = []
-    filenames = []
 
     # Status text
     status = ft.Text("")
 
-    # List view for uploaded photos
-    photo_list = ft.ListView(expand=True, spacing=10, padding=10, auto_scroll=True)
+    # Grid view for uploaded photo previews
+    photo_grid = ft.GridView(
+        expand=True,
+        runs_count=4,  # Number of columns
+        max_extent=100,  # Maximum width/height of each grid item
+        spacing=10,
+        run_spacing=10,
+        padding=10,
+        auto_scroll=True,
+    )
 
     # Image control for previewing the final collage
     collage_preview = ft.Image(
@@ -36,15 +45,20 @@ def main(page: ft.Page):
     def handle_upload(e: ft.FilePickerResultEvent):
         if e.files:
             images.clear()
-            filenames.clear()
-            photo_list.controls.clear()
+            photo_grid.controls.clear()
             for f in e.files:
                 try:
                     img = Image.open(f.path)
                     images.append(img)
-                    filenames.append(f.name)
-                    # Add filename to list view
-                    photo_list.controls.append(ft.Text(f.name))
+                    # Add image preview to grid view
+                    photo_grid.controls.append(
+                        ft.Image(
+                            src=f.path,
+                            width=100,
+                            height=100,
+                            fit=ft.ImageFit.CONTAIN,
+                            border_radius=5,
+                    ))
                 except Exception as ex:
                     status.value = f"Error loading {f.name}: {str(ex)}"
                     page.update()
@@ -179,22 +193,37 @@ def main(page: ft.Page):
 
     generate_button = ft.ElevatedButton("Generate A-Series Layout", on_click=generate_layout)
 
-    # Add components to page
+    # Layout with two columns: left for controls and grid, right for collage preview
     page.add(
-        ft.Column([
-            ft.Text(
-                "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
+        ft.Row([
+            ft.Column([
+                ft.Text(
+                    "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
+                ),
+                pick_button,
+                ft.Text("Uploaded Photos:"),
+                ft.Container(
+                    content=photo_grid,
+                    height=300,  # Fixed height to keep controls visible
+                    border=ft.border.all(1, ft.colors.BLACK),
+                    border_radius=5,
+                ),
+                generate_button,
+                status,
+                ],
+                alignment=ft.MainAxisAlignment.START,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                expand=1,
             ),
-            pick_button,
-            ft.Text("Uploaded Photos:"),
-            photo_list,
-            generate_button,
-            ft.Text("Collage Preview:"),
-            collage_preview,
-            status,
-            ],
+            ft.Column([
+                ft.Text("Collage Preview:"),
+                collage_preview,
+                ],
+                alignment=ft.MainAxisAlignment.START,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                expand=1,
+            ),],
             alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            vertical_alignment=ft.CrossAxisAlignment.START,
     ))
 
-ft.app(target=main)
