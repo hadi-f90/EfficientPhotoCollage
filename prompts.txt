@@ -101,3 +101,5 @@ main.py", line 72, in main
                                           ^^^^^^^^^^^^^
 UnboundLocalError: cannot access local variable 'handle_upload' where it is not associated with a valu
 Also, I want the app show the percentage of area covered by each photo on each photo
+---
+Good, but the percentage is seemingly shown beneath each photo, can you make it over or below each photo and above check mark?

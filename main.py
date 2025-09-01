@@ -95,7 +95,7 @@ def main(page: ft.Page):
                     # Calculate scale percentage text and color
                     scale_pct = 0  # 100% is original size, 0% change
                     scale_color = ft.Colors.BLACK
-                    # Add image preview with checkbox and scale/area percentage to grid view
+                    # Add image preview with percentage text above checkbox
                     photo_grid.controls.append(
                         ft.Container(
                             content=ft.Column([
@@ -106,10 +106,11 @@ def main(page: ft.Page):
                                     fit=ft.ImageFit.CONTAIN,
                                     border_radius=5,
                                 ),
-                                ft.Checkbox(label=""),
                                 ft.Text(
                                     value=f"Scale: {scale_pct}%", size=12, color=scale_color
-                                ),],
+                                ),
+                                ft.Checkbox(label=""),
+                                ],
                                 alignment=ft.MainAxisAlignment.CENTER,
                                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                             ),
@@ -140,7 +141,7 @@ def main(page: ft.Page):
     def delete_selected(e):
         to_delete = []
         for i, ctrl in enumerate(photo_grid.controls):
-            checkbox = ctrl.content.controls[1]
+            checkbox = ctrl.content.controls[2]  # Checkbox is now third control
             if checkbox.value:
                 to_delete.append(i)
         for i in sorted(to_delete, reverse=True):
@@ -155,8 +156,8 @@ def main(page: ft.Page):
         for i, ctrl in enumerate(photo_grid.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[2].color = scale_color
+            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
+            ctrl.content.controls[1].color = scale_color
         page.update()
 
     trash_button = ft.IconButton(icon=ft.Icons.DELETE, on_click=delete_selected)
@@ -165,15 +166,15 @@ def main(page: ft.Page):
     def increase_size(e):
         selected_count = 0
         for i, ctrl in enumerate(photo_grid.controls):
-            checkbox = ctrl.content.controls[1]
+            checkbox = ctrl.content.controls[2]  # Checkbox is now third control
             if not checkbox.value:
                 continue
             selected_count += 1
             scale_factors[i] *= 1.1
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[2].color = scale_color
+            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
+            ctrl.content.controls[1].color = scale_color
         if selected_count == 0:
             status.value = "No photos selected to increase size."
         else:
@@ -183,8 +184,8 @@ def main(page: ft.Page):
         for i, ctrl in enumerate(photo_grid.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[2].color = scale_color
+            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
+            ctrl.content.controls[1].color = scale_color
         page.update()
 
     increase_button = ft.IconButton(
@@ -195,7 +196,7 @@ def main(page: ft.Page):
     def decrease_size(e):
         selected_count = 0
         for i, ctrl in enumerate(photo_grid.controls):
-            checkbox = ctrl.content.controls[1]
+            checkbox = ctrl.content.controls[2]  # Checkbox is now third control
             if not checkbox.value:
                 continue
             selected_count += 1
@@ -203,8 +204,8 @@ def main(page: ft.Page):
             scale_factors[i] = max(scale_factors[i], 0.1)
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[2].color = scale_color
+            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
+            ctrl.content.controls[1].color = scale_color
         if selected_count == 0:
             status.value = "No photos selected to decrease size."
         else:
@@ -214,8 +215,8 @@ def main(page: ft.Page):
         for i, ctrl in enumerate(photo_grid.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[2].color = scale_color
+            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
+            ctrl.content.controls[1].color = scale_color
         page.update()
 
     decrease_button = ft.IconButton(
@@ -382,8 +383,8 @@ def main(page: ft.Page):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
             area_pct = area_percentages[i]
-            ctrl.content.controls[2].value = f"Scale: {scale_pct}%\nArea: {area_pct:.2f}%"
-            ctrl.content.controls[2].color = scale_color
+            ctrl.content.controls[1].value = f"Scale: {scale_pct}%\nArea: {area_pct:.2f}%"
+            ctrl.content.controls[1].color = scale_color
 
         # Generate unique filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -481,8 +482,8 @@ def main(page: ft.Page):
                 if scale_factors[photo_grid.controls.index(ctrl)] >= 1.0
                 else ft.Colors.RED
             )
-            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[2].color = scale_color
+            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
+            ctrl.content.controls[1].color = scale_color
         collage_preview.width = page.width * 0.4 / a_series_ratio
         collage_preview.height = page.height * 0.4
         page.update()
