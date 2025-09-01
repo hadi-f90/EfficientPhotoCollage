@@ -92,3 +92,6 @@ please make the whole window scrollable since some of the controls e.g. generate
 ==========
 
 The print button doesn't work trigger printing dialogue window. either fix it or remove it.
+
+----------
+The app doesn't show the amount of paper not covered by photos anymore did you omited it?
