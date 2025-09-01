@@ -53,4 +53,7 @@ flet warns me the It doen't use icons and colors anymore. Rather following PEP c
 
 ===========
 
-There is an error saving png in cmyk mode
+There is an error saving png in cmyk mode.
+
+=============
+Can you make the final canvas preview bigger, almost as big as the upload area. Also, I think the upload photo button is not needed anymore the plus button below photo preview area is enough, I think.

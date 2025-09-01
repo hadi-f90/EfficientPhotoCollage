@@ -19,9 +19,6 @@ def main(page: ft.Page):
     # Status text
     status = ft.Text("")
 
-    # Mode for appending or replacing
-    append_mode = {"value": False}
-
     # Checkbox for CMYK mode
     cmyk_mode = ft.Checkbox(
         label="Use CMYK color profile for printing (saves as TIFF)", value=False
@@ -39,10 +36,11 @@ def main(page: ft.Page):
     )
 
     # Image control for previewing the final collage
+    a_series_ratio = math.sqrt(2)
     collage_preview = ft.Image(
         src="",
-        width=300,
-        height=424,  # Scaled to maintain A-series aspect ratio (sqrt(2))
+        width=300 / a_series_ratio,  # Match upload area height, adjusted for aspect ratio
+        height=300,  # Same height as upload area
         fit=ft.ImageFit.CONTAIN,
         visible=False,
     )
@@ -53,7 +51,8 @@ def main(page: ft.Page):
 
     def handle_upload(e: ft.FilePickerResultEvent):
         if e.files:
-            if not append_mode["value"]:
+            # Clear if no images exist to mimic initial upload
+            if not images:
                 images.clear()
                 file_paths.clear()
                 photo_grid.controls.clear()
@@ -91,28 +90,17 @@ def main(page: ft.Page):
                     status.value = f"Error loading {f.name}: {str(ex)}"
                     page.update()
                     return
-            status.value = f"{'Loaded' if not append_mode['value'] else 'Added'} {added_count} new images successfully."
+            status.value = (
+                f"{'Loaded' if not images else 'Added'} {added_count} new images successfully."
+            )
             collage_preview.visible = False
-            append_mode["value"] = False  # Reset mode
             page.update()
-
-    # Button to pick files (replace mode)
-    pick_button = ft.ElevatedButton(
-        "Upload Photos",
-        on_click=lambda _: (
-            set_append_mode(False),
-            file_picker.pick_files(allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"]),
-    ),)
-
-    def set_append_mode(value):
-        append_mode["value"] = value
 
     # Add more button
     add_button = ft.IconButton(
         icon=ft.Icons.ADD,
-        on_click=lambda _: (
-            set_append_mode(True),
-            file_picker.pick_files(allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"]),
+        on_click=lambda _: file_picker.pick_files(
+            allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"]
     ),)
 
     # Delete selected button
@@ -283,7 +271,6 @@ def main(page: ft.Page):
                 ft.Text(
                     "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
                 ),
-                pick_button,
                 cmyk_mode,
                 ft.Text("Uploaded Photos:"),
                 ft.Container(
