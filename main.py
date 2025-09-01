@@ -22,6 +22,9 @@ def main(page: ft.Page):
     # Mode for appending or replacing
     append_mode = {"value": False}
 
+    # Checkbox for CMYK mode
+    cmyk_mode = ft.Checkbox(label="Use CMYK color profile for printing", value=False)
+
     # Grid view for uploaded photo previews
     photo_grid = ft.GridView(
         expand=True,
@@ -58,6 +61,9 @@ def main(page: ft.Page):
                     continue  # Skip duplicate files
                 try:
                     img = Image.open(f.path)
+                    # Convert to CMYK if selected
+                    if cmyk_mode.value:
+                        img = img.convert("CMYK")
                     images.append(img)
                     file_paths.append(f.path)
                     # Add image preview with checkbox to grid view
@@ -152,12 +158,12 @@ def main(page: ft.Page):
 
         return min_width, min_height
 
-    # Generate button
-    def generate_layout(e):
+    # Generate and save collage
+    def generate_layout(save_only=False):
         if not images:
             status.value = "No images loaded. Please upload photos first."
             page.update()
-            return
+            return None, None, None
 
         # A-series aspect ratio (sqrt(2) ≈ 1.414)
         a_series_ratio = math.sqrt(2)
@@ -169,7 +175,7 @@ def main(page: ft.Page):
         if num_images == 0:
             status.value = "No images to pack."
             page.update()
-            return
+            return None, None, None
 
         # Find minimal canvas for portrait (tall) orientation
         portrait_w, portrait_h = find_min_canvas(orig_sizes, num_images, a_series_ratio)
@@ -192,7 +198,7 @@ def main(page: ft.Page):
         if canvas_width == float('inf'):
             status.value = "Could not fit all images."
             page.update()
-            return
+            return None, None, None
 
         # Pack with the chosen size
         packer = newPacker(rotation=True)
@@ -204,7 +210,7 @@ def main(page: ft.Page):
         if len(packer.rect_list()) != num_images:
             status.value = "Packing failed unexpectedly."
             page.update()
-            return
+            return None, None, None
 
         # Calculate unused area percentage
         total_image_area = sum(w * h for w, h in orig_sizes)
@@ -215,7 +221,10 @@ def main(page: ft.Page):
             unused_pct = 0.0
 
         # Create canvas
-        canvas = Image.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
+        mode = "CMYK" if cmyk_mode.value else "RGB"
+        canvas = Image.new(
+            mode, (canvas_width, canvas_height), (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0)
+        )
 
         # Place images on canvas
         all_rects = packer.rect_list()
@@ -232,16 +241,31 @@ def main(page: ft.Page):
         output_path = "a_series_photo_layout.png"
         try:
             canvas.save(output_path)
-            # Update preview
-            collage_preview.src = output_path
-            collage_preview.visible = True
-            status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%"
+            if not save_only:
+                # Update preview
+                collage_preview.src = output_path
+                collage_preview.visible = True
+                status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%"
+                page.update()
+            return output_path, canvas_width, canvas_height
         except Exception as ex:
             status.value = f"Error saving file: {str(ex)}"
+            page.update()
+            return None, None, None
 
-        page.update()
+    # Generate button
+    generate_button = ft.ElevatedButton(
+        "Generate A-Series Layout", on_click=lambda e: generate_layout()
+    )
 
-    generate_button = ft.ElevatedButton("Generate A-Series Layout", on_click=generate_layout)
+    # Print button
+    def print_collage(e):
+        output_path, canvas_width, canvas_height = generate_layout(save_only=True)
+        if output_path:
+            status.value = f"Collage saved as '{output_path}'. Please open this file in an image viewer or PDF viewer to print."
+            page.update()
+
+    print_button = ft.ElevatedButton("Print Collage", on_click=print_collage)
 
     # Layout with two columns: left for controls and grid, right for collage preview
     page.add(
@@ -251,6 +275,7 @@ def main(page: ft.Page):
                     "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
                 ),
                 pick_button,
+                cmyk_mode,
                 ft.Text("Uploaded Photos:"),
                 ft.Container(
                     content=photo_grid,
@@ -265,6 +290,7 @@ def main(page: ft.Page):
                     alignment=ft.MainAxisAlignment.CENTER,
                 ),
                 generate_button,
+                print_button,
                 status,
                 ],
                 alignment=ft.MainAxisAlignment.START,

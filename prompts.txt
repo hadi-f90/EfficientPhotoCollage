@@ -43,3 +43,7 @@ Currently the app doesn't account for already added photos and duplicates them. 
 =====================
 
 Can you make photo previews be shown in a scrollable grid. current state make other controls e.g. generate button go out of viewable window and screen area.
+
+=================
+
+finally I want this collage be printable can you add a print button along with an option for output in cmyk mode -which would change color profile of photos into cmyk rather than rgb
