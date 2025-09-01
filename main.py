@@ -23,7 +23,9 @@ def main(page: ft.Page):
     append_mode = {"value": False}
 
     # Checkbox for CMYK mode
-    cmyk_mode = ft.Checkbox(label="Use CMYK color profile for printing", value=False)
+    cmyk_mode = ft.Checkbox(
+        label="Use CMYK color profile for printing (saves as TIFF)", value=False
+    )
 
     # Grid view for uploaded photo previews
     photo_grid = ft.GridView(
@@ -238,12 +240,19 @@ def main(page: ft.Page):
             canvas.paste(img, (x, y))
 
         # Save the output
-        output_path = "a_series_photo_layout.png"
+        output_path = (
+            "a_series_photo_layout.tiff" if cmyk_mode.value else "a_series_photo_layout.png"
+        )
+        preview_path = "a_series_photo_layout_preview.png" if cmyk_mode.value else output_path
         try:
             canvas.save(output_path)
+            if cmyk_mode.value:
+                # Convert CMYK to RGB for preview
+                rgb_canvas = canvas.convert("RGB")
+                rgb_canvas.save(preview_path)
             if not save_only:
                 # Update preview
-                collage_preview.src = output_path
+                collage_preview.src = preview_path
                 collage_preview.visible = True
                 status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%"
                 page.update()

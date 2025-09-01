@@ -50,3 +50,7 @@ finally I want this collage be printable can you add a print button along with a
 
 ===========
 flet warns me the It doen't use icons and colors anymore. Rather following PEP convetions it uses Icons and Colors instead. please fix this issue.
+
+===========
+
+There is an error saving png in cmyk mode
