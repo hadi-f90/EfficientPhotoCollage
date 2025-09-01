@@ -12,9 +12,10 @@ def main(page: ft.Page):
     page.window.height = 600
     page.update()
 
-    # List to hold loaded images and their file paths
+    # List to hold loaded images, their file paths, and scaling factors
     images = []
     file_paths = []
+    scale_factors = []  # Scaling factor for each image (1.0 = original size)
 
     # Status text
     status = ft.Text("")
@@ -28,7 +29,7 @@ def main(page: ft.Page):
     photo_grid = ft.GridView(
         expand=True,
         runs_count=4,  # Number of columns
-        max_extent=150,  # Increased for checkbox
+        max_extent=150,  # Increased for checkbox and scale text
         spacing=10,
         run_spacing=10,
         padding=10,
@@ -55,6 +56,7 @@ def main(page: ft.Page):
             if not images:
                 images.clear()
                 file_paths.clear()
+                scale_factors.clear()
                 photo_grid.controls.clear()
             added_count = 0
             for f in e.files:
@@ -67,7 +69,11 @@ def main(page: ft.Page):
                         img = img.convert("CMYK")
                     images.append(img)
                     file_paths.append(f.path)
-                    # Add image preview with checkbox to grid view
+                    scale_factors.append(1.0)  # Initialize scale factor to 1.0 (original size)
+                    # Calculate scale percentage text and color
+                    scale_pct = 0  # 100% is original size, 0% change
+                    scale_color = ft.Colors.BLACK
+                    # Add image preview with checkbox and scale percentage to grid view
                     photo_grid.controls.append(
                         ft.Container(
                             content=ft.Column([
@@ -79,6 +85,7 @@ def main(page: ft.Page):
                                     border_radius=5,
                                 ),
                                 ft.Checkbox(label=""),
+                                ft.Text(value=f"{scale_pct}%", size=12, color=scale_color),
                                 ],
                                 alignment=ft.MainAxisAlignment.CENTER,
                                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -113,6 +120,7 @@ def main(page: ft.Page):
         for i in sorted(to_delete, reverse=True):
             del images[i]
             del file_paths[i]
+            del scale_factors[i]
             del photo_grid.controls[i]
         status.value = f"Deleted {len(to_delete)} images."
         collage_preview.visible = False
@@ -120,12 +128,63 @@ def main(page: ft.Page):
 
     trash_button = ft.IconButton(icon=ft.Icons.DELETE, on_click=delete_selected)
 
+    # Increase size button
+    def increase_size(e):
+        selected_count = 0
+        for i, ctrl in enumerate(photo_grid.controls):
+            checkbox = ctrl.content.controls[1]
+            if not checkbox.value:
+                continue
+            selected_count += 1
+            scale_factors[i] *= 1.1
+            scale_pct = int((scale_factors[i] - 1.0) * 100)
+            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+            ctrl.content.controls[2].value = f"{scale_pct}%"
+            ctrl.content.controls[2].color = scale_color
+        if selected_count == 0:
+            status.value = "No photos selected to increase size."
+        else:
+            status.value = f"Increased size of {selected_count} selected photos by 10%."
+        collage_preview.visible = False
+        page.update()
+
+    increase_button = ft.IconButton(
+        icon=ft.Icons.ZOOM_IN, icon_color=ft.Colors.GREEN, on_click=increase_size
+    )
+
+    # Decrease size button
+    def decrease_size(e):
+        selected_count = 0
+        for i, ctrl in enumerate(photo_grid.controls):
+            checkbox = ctrl.content.controls[1]
+            if not checkbox.value:
+                continue
+            selected_count += 1
+            scale_factors[i] /= 1.1
+            scale_factors[i] = max(scale_factors[i], 0.1)
+            scale_pct = int((scale_factors[i] - 1.0) * 100)
+            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+            ctrl.content.controls[2].value = f"{scale_pct}%"
+            ctrl.content.controls[2].color = scale_color
+        if selected_count == 0:
+            status.value = "No photos selected to decrease size."
+        else:
+            status.value = f"Decreased size of {selected_count} selected photos by 10%."
+        collage_preview.visible = False
+        page.update()
+
+    decrease_button = ft.IconButton(
+        icon=ft.Icons.ZOOM_OUT, icon_color=ft.Colors.RED, on_click=decrease_size
+    )
+
     # Function to find minimal canvas for a given ratio (height / width)
     def find_min_canvas(orig_sizes, num_images, ratio):
-        min_side_req = max(min(w, h) for w, h in orig_sizes)
-        max_side_req = max(max(w, h) for w, h in orig_sizes)
+        min_side_req = max(min(w * s, h * s) for (w, h), s in zip(orig_sizes, scale_factors))
+        max_side_req = max(max(w * s, h * s) for (w, h), s in zip(orig_sizes, scale_factors))
         low = max(min_side_req, math.ceil(max_side_req / ratio))
-        high = sum(max(w, h) for w, h in orig_sizes) * 2  # Upper bound
+        high = (
+            sum(max(w * s, h * s) for (w, h), s in zip(orig_sizes, scale_factors)) * 2
+        )  # Upper bound
 
         min_width = float('inf')
         min_height = float('inf')
@@ -136,7 +195,9 @@ def main(page: ft.Page):
             ch = int(mid * ratio)
             packer = newPacker(rotation=True)
             for i, (w, h) in enumerate(orig_sizes):
-                packer.add_rect(w, h, rid=i)
+                scaled_w = max(1, int(w * scale_factors[i]))
+                scaled_h = max(1, int(h * scale_factors[i]))
+                packer.add_rect(scaled_w, scaled_h, rid=i)
             packer.add_bin(cw, ch)
             packer.pack()
             if len(packer.rect_list()) == num_images:
@@ -193,7 +254,9 @@ def main(page: ft.Page):
         # Pack with the chosen size
         packer = newPacker(rotation=True)
         for i, (w, h) in enumerate(orig_sizes):
-            packer.add_rect(w, h, rid=i)
+            scaled_w = max(1, int(w * scale_factors[i]))
+            scaled_h = max(1, int(h * scale_factors[i]))
+            packer.add_rect(scaled_w, scaled_h, rid=i)
         packer.add_bin(canvas_width, canvas_height)
         packer.pack()
 
@@ -203,7 +266,7 @@ def main(page: ft.Page):
             return None, None, None
 
         # Calculate unused area percentage
-        total_image_area = sum(w * h for w, h in orig_sizes)
+        total_image_area = sum(w * h * s**2 for (w, h), s in zip(orig_sizes, scale_factors))
         canvas_area = canvas_width * canvas_height
         if canvas_area > 0:
             unused_pct = ((canvas_area - total_image_area) / canvas_area) * 100
@@ -222,10 +285,13 @@ def main(page: ft.Page):
             img = images[rid]
             # Determine if rotated
             orig_w, orig_h = orig_sizes[rid]
-            if w == orig_h and h == orig_w:
+            scaled_w = max(1, int(orig_w * scale_factors[rid]))
+            scaled_h = max(1, int(orig_h * scale_factors[rid]))
+            if w == scaled_h and h == scaled_w:
                 img = img.rotate(90, expand=True)
-            # Paste onto canvas without resizing
-            canvas.paste(img, (x, y))
+            # Resize image to scaled dimensions for pasting
+            img_resized = img.resize((w, h), Image.Resampling.LANCZOS)
+            canvas.paste(img_resized, (x, y))
 
         # Save the output
         output_path = (
@@ -282,6 +348,8 @@ def main(page: ft.Page):
                 ft.Row([
                     trash_button,
                     add_button,
+                    increase_button,
+                    decrease_button,
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
                 ),

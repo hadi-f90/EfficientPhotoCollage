@@ -57,3 +57,12 @@ There is an error saving png in cmyk mode.
 
 =============
 Can you make the final canvas preview bigger, almost as big as the upload area. Also, I think the upload photo button is not needed anymore the plus button below photo preview area is enough, I think.
+
+===========
+Now, I want the proportion of photos in final canvas be editable.
+for this, next to add & delete button add 2 magnifier one with + and the other with minus.
+when the user presses them proportion of these photos in final canvas changes by the specified percentage. also show the percentage of change in size of photo on or under the photo itself
+use green color for increase and red for decrease in photo size.
+
+-------
+Well,  It seems there are some bugs in it.  when some photos are selected the percent below other none selected ones change, too- while the mustn't. also, the generate button doesn't work anymore.
