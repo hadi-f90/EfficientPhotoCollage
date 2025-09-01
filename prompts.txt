@@ -10,3 +10,8 @@ I want it keep efficiency kinda like similar apps used to cut woods, glasses usi
 
 ==================
 The app you created in fine. but I think  I found a library https://github.com/secnot/rectpack for rectangle packing. Can you write another version that uses this library.
+
+
+====================
+
+Can you change the program so that it would not resize the original photos before putting in final canvas. the only important things is that it keeps the proportion of final canvas in A paper series ones. no matter how big the final canvas would get.

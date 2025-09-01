@@ -1,10 +1,12 @@
+import math
+
 import flet as ft
 from PIL import Image
 from rectpack import newPacker
 
 
 def main(page: ft.Page):
-    page.title = "Photo Arranger for A4 Printing with Rectpack"
+    page.title = "Photo Arranger for A-Series Printing with Rectpack"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.update()
 
@@ -46,90 +48,74 @@ def main(page: ft.Page):
             page.update()
             return
 
-        # Define A4 dimensions at 300 DPI for print quality
-        dpi = 300
-        a4_mm_width = 210  # A4 width in mm (portrait)
-        a4_mm_height = 297  # A4 height in mm
-        canvas_width = int((a4_mm_width / 25.4) * dpi)
-        canvas_height = int((a4_mm_height / 25.4) * dpi)
+        # A-series aspect ratio (height/width ≈ 1.414)
+        a_series_ratio = math.sqrt(2)  # ≈1.4142135623730951
 
         # Original sizes
         orig_sizes = [(img.width, img.height) for img in images]
         num_images = len(images)
 
-        # Binary search for the maximum scale factor
-        low = 0.0
-        high = 1.0
-        precision = 0.001
-
-        def can_pack(scale_val):
-            packer = newPacker(rotation=True)
-            for i, (w, h) in enumerate(orig_sizes):
-                sw = max(1, int(w * scale_val))
-                sh = max(1, int(h * scale_val))
-                packer.add_rect(sw, sh, rid=i)
-            packer.add_bin(canvas_width, canvas_height)
-            packer.pack()
-            return len(packer.rect_list()) == num_images
-
-        while high - low > precision:
-            mid = (low + high) / 2
-            if can_pack(mid):
-                low = mid
-            else:
-                high = mid
-
-        scale = low
-
-        # Now pack with the found scale
-        packer = newPacker(rotation=True)
-        scaled_sizes = []
-        for i, (w, h) in enumerate(orig_sizes):
-            sw = max(1, int(w * scale))
-            sh = max(1, int(h * scale))
-            scaled_sizes.append((sw, sh))
-            packer.add_rect(sw, sh, rid=i)
-        packer.add_bin(canvas_width, canvas_height)
-        packer.pack()
-
-        if len(packer.rect_list()) != num_images:
-            status.value = "Could not fit all images."
+        if num_images == 0:
+            status.value = "No images to pack."
             page.update()
             return
 
-        # Create white canvas
+        # Try packing with original sizes
+        # Start with a small canvas and scale up until all images fit
+        base_width = max(w for w, h in orig_sizes)  # Start with largest image width
+        scale = 1.0
+        step = 0.5
+        max_attempts = 20
+
+        for _ in range(max_attempts):
+            canvas_width = int(base_width * scale)
+            canvas_height = int(canvas_width * a_series_ratio)
+
+            packer = newPacker(rotation=True)
+            for i, (w, h) in enumerate(orig_sizes):
+                packer.add_rect(w, h, rid=i)
+            packer.add_bin(canvas_width, canvas_height)
+            packer.pack()
+
+            if len(packer.rect_list()) == num_images:
+                break
+            scale += step  # Increase canvas size
+
+        if len(packer.rect_list()) != num_images:
+            status.value = "Could not fit all images even with larger canvas."
+            page.update()
+            return
+
+        # Create canvas with final dimensions
         canvas = Image.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
 
         # Place images on canvas
         all_rects = packer.rect_list()
         for _, x, y, w, h, rid in all_rects:
             img = images[rid]
-            sw, sh = scaled_sizes[rid]
             # Determine if rotated
-            if w == sh and h == sw:
+            if w == img.height and h == img.width:
                 img = img.rotate(90, expand=True)
-            # Resize to fit exactly
-            resized_img = img.resize((w, h), Image.LANCZOS)
-            # Paste onto canvas
-            canvas.paste(resized_img, (x, y))
+            # Paste onto canvas without resizing
+            canvas.paste(img, (x, y))
 
         # Save the output
-        output_path = "a4_photo_layout.png"
+        output_path = "a_series_photo_layout.png"
         try:
             canvas.save(output_path)
-            status.value = f"Layout generated and saved as '{output_path}'. You can print this file on A4 paper."
+            status.value = f"Layout generated and saved as '{output_path}'. Canvas size: {canvas_width}x{canvas_height} pixels."
         except Exception as ex:
             status.value = f"Error saving file: {str(ex)}"
 
         page.update()
 
-    generate_button = ft.ElevatedButton("Generate A4 Layout", on_click=generate_layout)
+    generate_button = ft.ElevatedButton("Generate A-Series Layout", on_click=generate_layout)
 
     # Add components to page
     page.add(
         ft.Column([
             ft.Text(
-                "Upload multiple photos and generate a printable A4 layout using rectpack."
+                "Upload multiple photos to generate a printable layout with A-series proportions."
             ),
             pick_button,
             generate_button,
