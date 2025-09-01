@@ -1,10 +1,11 @@
+import math
+
 import flet as ft
 from PIL import Image
-from rectpack import newPacker
 
 
 def main(page: ft.Page):
-    page.title = "Photo Arranger for A4 Printing with Rectpack"
+    page.title = "Photo Arranger for A4 Printing"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.update()
 
@@ -50,68 +51,76 @@ def main(page: ft.Page):
         dpi = 300
         a4_mm_width = 210  # A4 width in mm (portrait)
         a4_mm_height = 297  # A4 height in mm
+        # Convert to pixels
         canvas_width = int((a4_mm_width / 25.4) * dpi)
         canvas_height = int((a4_mm_height / 25.4) * dpi)
 
-        # Original sizes
-        orig_sizes = [(img.width, img.height) for img in images]
+        # Sort images by area descending
+        images.sort(key=lambda img: img.width * img.height, reverse=True)
+
         num_images = len(images)
 
-        # Binary search for the maximum scale factor
-        low = 0.0
-        high = 1.0
-        precision = 0.001
-
-        def can_pack(scale_val):
-            packer = newPacker(rotation=True)
-            for i, (w, h) in enumerate(orig_sizes):
-                sw = max(1, int(w * scale_val))
-                sh = max(1, int(h * scale_val))
-                packer.add_rect(sw, sh, rid=i)
-            packer.add_bin(canvas_width, canvas_height)
-            packer.pack()
-            return len(packer.rect_list()) == num_images
-
-        while high - low > precision:
-            mid = (low + high) / 2
-            if can_pack(mid):
-                low = mid
-            else:
-                high = mid
-
-        scale = low
-
-        # Now pack with the found scale
-        packer = newPacker(rotation=True)
-        scaled_sizes = []
-        for i, (w, h) in enumerate(orig_sizes):
-            sw = max(1, int(w * scale))
-            sh = max(1, int(h * scale))
-            scaled_sizes.append((sw, sh))
-            packer.add_rect(sw, sh, rid=i)
-        packer.add_bin(canvas_width, canvas_height)
-        packer.pack()
-
-        if len(packer.rect_list()) != num_images:
-            status.value = "Could not fit all images."
-            page.update()
+        if num_images == 0:
             return
+
+        # Find best cols that maximizes total used area (minimizes waste)
+        best_cols = 1
+        best_used = 0.0
+        for cols in range(1, num_images + 1):
+            rows = math.ceil(num_images / cols)
+            cell_width = canvas_width / cols
+            cell_height = canvas_height / rows
+            total_used = 0.0
+            for img in images:
+                w, h = img.width, img.height
+                scale_orig = min(cell_width / w, cell_height / h)
+                area_orig = w * h * (scale_orig**2)
+                scale_rot = min(cell_width / h, cell_height / w)
+                area_rot = w * h * (scale_rot**2)
+                total_used += max(area_orig, area_rot)
+            if total_used > best_used:
+                best_used = total_used
+                best_cols = cols
+
+        cols = best_cols
+        rows = math.ceil(num_images / cols)
+
+        cell_width = canvas_width / cols
+        cell_height = canvas_height / rows
 
         # Create white canvas
         canvas = Image.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
 
         # Place images on canvas
-        all_rects = packer.rect_list()
-        for _, x, y, w, h, rid in all_rects:
-            img = images[rid]
-            sw, sh = scaled_sizes[rid]
-            # Determine if rotated
-            if w == sh and h == sw:
+        for i in range(num_images):
+            img = images[i]
+            w, h = img.width, img.height
+            scale_orig = min(cell_width / w, cell_height / h)
+            scale_rot = min(cell_width / h, cell_height / w)
+            rotate = scale_rot > scale_orig
+            if rotate:
                 img = img.rotate(90, expand=True)
-            # Resize to fit exactly
-            resized_img = img.resize((w, h), Image.LANCZOS)
-            # Paste onto canvas
-            canvas.paste(resized_img, (x, y))
+                w, h = h, w
+                scale = scale_rot
+            else:
+                scale = scale_orig
+
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            resized_img = img.resize((new_w, new_h), Image.LANCZOS)
+
+            row = i // cols
+            col = i % cols
+            x = int(col * cell_width)
+            y = int(row * cell_height)
+
+            paste_x = x + int((cell_width - new_w) / 2)
+            paste_y = y + int((cell_height - new_h) / 2)
+
+            canvas.paste(resized_img, (paste_x, paste_y))
+
+            # Update the image in the list if rotated
+            images[i] = img if rotate else images[i]
 
         # Save the output
         output_path = "a4_photo_layout.png"
@@ -128,9 +137,7 @@ def main(page: ft.Page):
     # Add components to page
     page.add(
         ft.Column([
-            ft.Text(
-                "Upload multiple photos and generate a printable A4 layout using rectpack."
-            ),
+            ft.Text("Upload multiple photos and generate a printable A4 layout."),
             pick_button,
             generate_button,
             status,

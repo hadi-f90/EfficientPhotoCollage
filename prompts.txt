@@ -6,3 +6,7 @@ Using flet library, write a python app that inputs several photo files and put t
 
 ======================================
 I want it keep efficiency kinda like similar apps used to cut woods, glasses using cnc milling machines. I don't mind the orientation of photo changed, BUT RATHER DO AVOID CROPING IMAGES. since the paper is going to be cut by border of photos.
+
+
+==================
+The app you created in fine. but I think  I found a library https://github.com/secnot/rectpack for rectangle packing. Can you write another version that uses this library.
