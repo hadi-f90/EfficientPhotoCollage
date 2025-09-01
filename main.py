@@ -1,10 +1,9 @@
-import math
-from datetime import datetime
-
 import flet as ft
 from PIL import Image
+import math
+import os
 from rectpack import newPacker
-
+from datetime import datetime
 
 def main(page: ft.Page):
     page.title = "Photo Arranger for A-Series Printing with Rectpack"
@@ -21,9 +20,7 @@ def main(page: ft.Page):
     status = ft.Text("")
 
     # Checkbox for CMYK mode
-    cmyk_mode = ft.Checkbox(
-        label="Use CMYK color profile for printing (saves as TIFF)", value=False
-    )
+    cmyk_mode = ft.Checkbox(label="Use CMYK color profile for printing (saves as TIFF)", value=False)
 
     # Grid view for uploaded photo previews
     def get_grid_params():
@@ -31,9 +28,10 @@ def main(page: ft.Page):
         screen_width = page.width
         if screen_width < 600:  # Mobile
             return 2, 120  # 2 columns, smaller images
-        if screen_width < 900:  # Tablet
+        elif screen_width < 900:  # Tablet
             return 3, 130
-        return 4, 150
+        else:  # Desktop
+            return 4, 150
 
     runs_count, max_extent = get_grid_params()
     photo_grid = ft.GridView(
@@ -43,7 +41,7 @@ def main(page: ft.Page):
         spacing=10,
         run_spacing=10,
         padding=10,
-        auto_scroll=True,
+        auto_scroll=True
     )
 
     # Image control for previewing the final collage
@@ -53,11 +51,11 @@ def main(page: ft.Page):
         width=page.width * 0.4 / a_series_ratio,  # 40% of screen width, adjusted for aspect ratio
         height=page.height * 0.4,  # 40% of screen height
         fit=ft.ImageFit.CONTAIN,
-        visible=False,
+        visible=False
     )
 
     # File picker for multiple images
-    file_picker = ft.FilePicker(on_result=handle_upload)
+    file_picker = ft.FilePicker(on_result=lambda e: handle_upload(e))
     page.overlay.append(file_picker)
 
     def handle_upload(e: ft.FilePickerResultEvent):
@@ -86,39 +84,42 @@ def main(page: ft.Page):
                     # Add image preview with checkbox and scale percentage to grid view
                     photo_grid.controls.append(
                         ft.Container(
-                            content=ft.Column([
-                                ft.Image(
-                                    src=f.path,
-                                    width=max_extent - 20,
-                                    height=max_extent - 20,
-                                    fit=ft.ImageFit.CONTAIN,
-                                    border_radius=5,
-                                ),
-                                ft.Checkbox(label=""),
-                                ft.Text(value=f"{scale_pct}%", size=12, color=scale_color),
+                            content=ft.Column(
+                                [
+                                    ft.Image(
+                                        src=f.path,
+                                        width=max_extent - 20,
+                                        height=max_extent - 20,
+                                        fit=ft.ImageFit.CONTAIN,
+                                        border_radius=5
+                                    ),
+                                    ft.Checkbox(label=""),
+                                    ft.Text(
+                                        value=f"{scale_pct}%",
+                                        size=12,
+                                        color=scale_color
+                                    )
                                 ],
                                 alignment=ft.MainAxisAlignment.CENTER,
                                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                             ),
                             alignment=ft.alignment.center,
-                    ))
+                        )
+                    )
                     added_count += 1
                 except Exception as ex:
                     status.value = f"Error loading {f.name}: {str(ex)}"
                     page.update()
                     return
-            status.value = (
-                f"{'Loaded' if not images else 'Added'} {added_count} new images successfully."
-            )
+            status.value = f"{'Loaded' if not images else 'Added'} {added_count} new images successfully."
             collage_preview.visible = False
             page.update()
 
     # Add more button
     add_button = ft.IconButton(
         icon=ft.Icons.ADD,
-        on_click=lambda _: file_picker.pick_files(
-            allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"]
-    ),)
+        on_click=lambda _: file_picker.pick_files(allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"])
+    )
 
     # Delete selected button
     def delete_selected(e):
@@ -143,14 +144,14 @@ def main(page: ft.Page):
         selected_count = 0
         for i, ctrl in enumerate(photo_grid.controls):
             checkbox = ctrl.content.controls[1]
-            if not checkbox.value:
-                continue
-            selected_count += 1
-            scale_factors[i] *= 1.1
-            scale_pct = int((scale_factors[i] - 1.0) * 100)
-            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[2].value = f"{scale_pct}%"
-            ctrl.content.controls[2].color = scale_color
+            if checkbox.value:
+                selected_count += 1
+                scale_factors[i] *= 1.1  # Increase size by 10%
+                # Update scale percentage text and color
+                scale_pct = int((scale_factors[i] - 1.0) * 100)
+                scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+                ctrl.content.controls[2].value = f"{scale_pct}%"
+                ctrl.content.controls[2].color = scale_color
         if selected_count == 0:
             status.value = "No photos selected to increase size."
         else:
@@ -159,7 +160,9 @@ def main(page: ft.Page):
         page.update()
 
     increase_button = ft.IconButton(
-        icon=ft.Icons.ZOOM_IN, icon_color=ft.Colors.GREEN, on_click=increase_size
+        icon=ft.Icons.ZOOM_IN,
+        icon_color=ft.Colors.GREEN,
+        on_click=increase_size
     )
 
     # Decrease size button
@@ -167,15 +170,16 @@ def main(page: ft.Page):
         selected_count = 0
         for i, ctrl in enumerate(photo_grid.controls):
             checkbox = ctrl.content.controls[1]
-            if not checkbox.value:
-                continue
-            selected_count += 1
-            scale_factors[i] /= 1.1
-            scale_factors[i] = max(scale_factors[i], 0.1)
-            scale_pct = int((scale_factors[i] - 1.0) * 100)
-            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[2].value = f"{scale_pct}%"
-            ctrl.content.controls[2].color = scale_color
+            if checkbox.value:
+                selected_count += 1
+                scale_factors[i] /= 1.1  # Decrease size by 10%
+                # Ensure scale factor doesn't go below a reasonable minimum
+                scale_factors[i] = max(scale_factors[i], 0.1)
+                # Update scale percentage text and color
+                scale_pct = int((scale_factors[i] - 1.0) * 100)
+                scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+                ctrl.content.controls[2].value = f"{scale_pct}%"
+                ctrl.content.controls[2].color = scale_color
         if selected_count == 0:
             status.value = "No photos selected to decrease size."
         else:
@@ -184,7 +188,9 @@ def main(page: ft.Page):
         page.update()
 
     decrease_button = ft.IconButton(
-        icon=ft.Icons.ZOOM_OUT, icon_color=ft.Colors.RED, on_click=decrease_size
+        icon=ft.Icons.ZOOM_OUT,
+        icon_color=ft.Colors.RED,
+        on_click=decrease_size
     )
 
     # Function to find minimal canvas for a given ratio (height / width)
@@ -192,9 +198,7 @@ def main(page: ft.Page):
         min_side_req = max(min(w * s, h * s) for (w, h), s in zip(orig_sizes, scale_factors))
         max_side_req = max(max(w * s, h * s) for (w, h), s in zip(orig_sizes, scale_factors))
         low = max(min_side_req, math.ceil(max_side_req / ratio))
-        high = (
-            sum(max(w * s, h * s) for (w, h), s in zip(orig_sizes, scale_factors)) * 2
-        )  # Upper bound
+        high = sum(max(w * s, h * s) for (w, h), s in zip(orig_sizes, scale_factors)) * 2  # Upper bound
 
         min_width = float('inf')
         min_height = float('inf')
@@ -285,15 +289,11 @@ def main(page: ft.Page):
 
         # Create canvas
         mode = "CMYK" if cmyk_mode.value else "RGB"
-        canvas = Image.new(
-            mode,
-            (int(canvas_width), int(canvas_height)),
-            (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0),
-        )
+        canvas = Image.new(mode, (int(canvas_width), int(canvas_height)), (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0))
 
         # Place images on canvas
         all_rects = packer.rect_list()
-        for _, x, y, w, h, rid in all_rects:
+        for b, x, y, w, h, rid in all_rects:
             img = images[rid]
             # Determine if rotated
             orig_w, orig_h = orig_sizes[rid]
@@ -309,9 +309,7 @@ def main(page: ft.Page):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         file_ext = "tiff" if cmyk_mode.value else "png"
         output_path = f"a_series_photo_layout_{timestamp}.{file_ext}"
-        preview_path = (
-            f"a_series_photo_layout_preview_{timestamp}.png" if cmyk_mode.value else output_path
-        )
+        preview_path = f"a_series_photo_layout_preview_{timestamp}.png" if cmyk_mode.value else output_path
 
         try:
             canvas.save(output_path)
@@ -332,9 +330,7 @@ def main(page: ft.Page):
             return None, None, None
 
     # Generate button
-    generate_button = ft.ElevatedButton(
-        "Generate A-Series Layout", on_click=lambda e: generate_layout()
-    )
+    generate_button = ft.ElevatedButton("Generate A-Series Layout", on_click=lambda e: generate_layout())
 
     # Print button
     def print_collage(e):
@@ -347,52 +343,56 @@ def main(page: ft.Page):
 
     # Responsive layout wrapped in a scrollable column
     page.add(
-        ft.Column([
-            ft.ResponsiveRow([
-                ft.Column(
-                    col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
-                    controls=[
-                        ft.Text(
-                            "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
-                        ),
-                        cmyk_mode,
-                        ft.Text("Uploaded Photos:"),
-                        ft.Container(
-                            content=photo_grid,
-                            height=page.height * 0.4,  # 40% of screen height
-                            border=ft.border.all(1, ft.Colors.BLACK),
-                            border_radius=5,
-                        ),
-                        ft.Row([
-                            trash_button,
-                            add_button,
-                            increase_button,
-                            decrease_button,
+        ft.Column(
+            [
+                ft.ResponsiveRow(
+                    [
+                        ft.Column(
+                            col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
+                            controls=[
+                                ft.Text("Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."),
+                                cmyk_mode,
+                                ft.Text("Uploaded Photos:"),
+                                ft.Container(
+                                    content=photo_grid,
+                                    height=page.height * 0.4,  # 40% of screen height
+                                    border=ft.border.all(1, ft.Colors.BLACK),
+                                    border_radius=5
+                                ),
+                                ft.Row(
+                                    [
+                                        trash_button,
+                                        add_button,
+                                        increase_button,
+                                        decrease_button,
+                                    ],
+                                    alignment=ft.MainAxisAlignment.CENTER
+                                ),
+                                generate_button,
+                                print_button,
+                                status,
                             ],
-                            alignment=ft.MainAxisAlignment.CENTER,
+                            alignment=ft.MainAxisAlignment.START,
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                         ),
-                        generate_button,
-                        print_button,
-                        status,
+                        ft.Column(
+                            col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
+                            controls=[
+                                ft.Text("Collage Preview:"),
+                                collage_preview,
+                            ],
+                            alignment=ft.MainAxisAlignment.START,
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        ),
                     ],
-                    alignment=ft.MainAxisAlignment.START,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                ),
-                ft.Column(
-                    col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
-                    controls=[
-                        ft.Text("Collage Preview:"),
-                        collage_preview,
-                    ],
-                    alignment=ft.MainAxisAlignment.START,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                ),],
-                alignment=ft.MainAxisAlignment.CENTER,
-                vertical_alignment=ft.CrossAxisAlignment.START,
-            )],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    vertical_alignment=ft.CrossAxisAlignment.START,
+                )
+            ],
             scroll=ft.ScrollMode.AUTO,  # Enable vertical scrolling
-            expand=True,
-    ))
+            expand=True
+        )
+    )
 
     # Update layout on window resize
     def on_resize(e):
