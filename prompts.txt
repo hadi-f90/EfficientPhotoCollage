@@ -1,0 +1,4 @@
+Prompts given to Grok.
+
+I want you be my python coder.
+Using flet library, write a python app that inputs several photo files and put them along each other in A4  or smaller paper series. I want to do this to print  as many quality photos as possible for my album in an A4 paper. I don't mind the size of output as long as it keeps the ratio of A paper series as output. If you need more my explanations do ask me.
