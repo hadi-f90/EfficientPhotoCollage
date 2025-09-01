@@ -124,6 +124,14 @@ def main(page: ft.Page):
             page.update()
             return
 
+        # Calculate unused area percentage
+        total_image_area = sum(w * h for w, h in orig_sizes)
+        canvas_area = canvas_width * canvas_height
+        if canvas_area > 0:
+            unused_pct = ((canvas_area - total_image_area) / canvas_area) * 100
+        else:
+            unused_pct = 0.0
+
         # Create canvas
         canvas = Image.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
 
@@ -142,7 +150,7 @@ def main(page: ft.Page):
         output_path = "a_series_photo_layout.png"
         try:
             canvas.save(output_path)
-            status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels."
+            status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%"
         except Exception as ex:
             status.value = f"Error saving file: {str(ex)}"
 

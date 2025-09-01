@@ -18,3 +18,8 @@ Can you change the program so that it would not resize the original photos befor
 
 ====================
 can you change it so that the photos would get as much area of canvas as possible. I want pictures almost fill all the canvas area.
+
+================
+Good, now add some features:
+In addition to giving out the message about the generated packed collage of photos. I want the app give the user information about the percentage of unused area of canvas.
+
