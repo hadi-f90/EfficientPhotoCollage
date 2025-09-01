@@ -66,3 +66,14 @@ use green color for increase and red for decrease in photo size.
 
 -------
 Well,  It seems there are some bugs in it.  when some photos are selected the percent below other none selected ones change, too- while the mustn't. also, the generate button doesn't work anymore.
+
+-----------
+
+previous problem get resolved but I still get this error pressing generate button:
+p17.py", line 281, in generate_layout
+    canvas = Image.new(mode, (canvas_width, canvas_height), (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+python3.12/site-packages/PIL/Image.py", line 3117, in new
+    return im._new(core.fill(mode, size, color))
+
+TypeError: 'float' object cannot be interpreted as an integer

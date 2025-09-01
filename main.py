@@ -207,7 +207,7 @@ def main(page: ft.Page):
             else:
                 low = mid + 1
 
-        return min_width, min_height
+        return int(min_width), int(min_height)
 
     # Generate and save collage
     def generate_layout(save_only=False):
@@ -276,7 +276,9 @@ def main(page: ft.Page):
         # Create canvas
         mode = "CMYK" if cmyk_mode.value else "RGB"
         canvas = Image.new(
-            mode, (canvas_width, canvas_height), (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0)
+            mode,
+            (int(canvas_width), int(canvas_height)),
+            (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0),
         )
 
         # Place images on canvas
