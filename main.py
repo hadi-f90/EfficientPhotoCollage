@@ -345,49 +345,53 @@ def main(page: ft.Page):
 
     print_button = ft.ElevatedButton("Print Collage", on_click=print_collage)
 
-    # Responsive layout
+    # Responsive layout wrapped in a scrollable column
     page.add(
-        ft.ResponsiveRow([
-            ft.Column(
-                col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
-                controls=[
-                    ft.Text(
-                        "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
-                    ),
-                    cmyk_mode,
-                    ft.Text("Uploaded Photos:"),
-                    ft.Container(
-                        content=photo_grid,
-                        height=page.height * 0.4,  # 40% of screen height
-                        border=ft.border.all(1, ft.Colors.BLACK),
-                        border_radius=5,
-                    ),
-                    ft.Row([
-                        trash_button,
-                        add_button,
-                        increase_button,
-                        decrease_button,
-                        ],
-                        alignment=ft.MainAxisAlignment.CENTER,
-                    ),
-                    generate_button,
-                    print_button,
-                    status,
-                ],
-                alignment=ft.MainAxisAlignment.START,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            ft.Column(
-                col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
-                controls=[
-                    ft.Text("Collage Preview:"),
-                    collage_preview,
-                ],
-                alignment=ft.MainAxisAlignment.START,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            ),],
-            alignment=ft.MainAxisAlignment.CENTER,
-            vertical_alignment=ft.CrossAxisAlignment.START,
+        ft.Column([
+            ft.ResponsiveRow([
+                ft.Column(
+                    col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
+                    controls=[
+                        ft.Text(
+                            "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
+                        ),
+                        cmyk_mode,
+                        ft.Text("Uploaded Photos:"),
+                        ft.Container(
+                            content=photo_grid,
+                            height=page.height * 0.4,  # 40% of screen height
+                            border=ft.border.all(1, ft.Colors.BLACK),
+                            border_radius=5,
+                        ),
+                        ft.Row([
+                            trash_button,
+                            add_button,
+                            increase_button,
+                            decrease_button,
+                            ],
+                            alignment=ft.MainAxisAlignment.CENTER,
+                        ),
+                        generate_button,
+                        print_button,
+                        status,
+                    ],
+                    alignment=ft.MainAxisAlignment.START,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
+                ft.Column(
+                    col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
+                    controls=[
+                        ft.Text("Collage Preview:"),
+                        collage_preview,
+                    ],
+                    alignment=ft.MainAxisAlignment.START,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                ),],
+                alignment=ft.MainAxisAlignment.CENTER,
+                vertical_alignment=ft.CrossAxisAlignment.START,
+            )],
+            scroll=ft.ScrollMode.AUTO,  # Enable vertical scrolling
+            expand=True,
     ))
 
     # Update layout on window resize
