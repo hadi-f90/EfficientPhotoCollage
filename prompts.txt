@@ -32,3 +32,7 @@ Well I wanted the list of photos preview rather than their names and to be scrol
 
 Can you make photo previews be shown in a scrollable grid. current state make other controls e.g. generate button go out of viewable window and screen area.
 
+=============
+
+Great, now I want make the list editable. the list be  for each photo item in preview pan add a checkbox.
+under the preview pan add a trash icon which deletes the photo from list of photos. next to the trash button Add a button (with a plus icon or a photo with a plus icon if flet supports to add more photos to preview list

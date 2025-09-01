@@ -18,11 +18,14 @@ def main(page: ft.Page):
     # Status text
     status = ft.Text("")
 
+    # Mode for appending or replacing
+    append_mode = {"value": False}
+
     # Grid view for uploaded photo previews
     photo_grid = ft.GridView(
         expand=True,
         runs_count=4,  # Number of columns
-        max_extent=100,  # Maximum width/height of each grid item
+        max_extent=150,  # Increased for checkbox
         spacing=10,
         run_spacing=10,
         padding=10,
@@ -44,35 +47,80 @@ def main(page: ft.Page):
 
     def handle_upload(e: ft.FilePickerResultEvent):
         if e.files:
-            images.clear()
-            photo_grid.controls.clear()
+            if not append_mode["value"]:
+                images.clear()
+                photo_grid.controls.clear()
+            added_count = 0
             for f in e.files:
                 try:
                     img = Image.open(f.path)
                     images.append(img)
-                    # Add image preview to grid view
+                    # Add image preview with checkbox to grid view
                     photo_grid.controls.append(
-                        ft.Image(
-                            src=f.path,
-                            width=100,
-                            height=100,
-                            fit=ft.ImageFit.CONTAIN,
-                            border_radius=5,
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Image(
+                                    src=f.path,
+                                    width=100,
+                                    height=100,
+                                    fit=ft.ImageFit.CONTAIN,
+                                    border_radius=5,
+                                ),
+                                ft.Checkbox(label=""),
+                                ],
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                            ),
+                            alignment=ft.alignment.center,
                     ))
+                    added_count += 1
                 except Exception as ex:
                     status.value = f"Error loading {f.name}: {str(ex)}"
                     page.update()
                     return
-            status.value = f"Loaded {len(images)} images successfully."
+            status.value = (
+                f"Loaded {added_count} images successfully."
+                if not append_mode["value"]
+                else f"Added {added_count} images successfully."
+            )
             collage_preview.visible = False
+            append_mode["value"] = False  # Reset mode
             page.update()
 
-    # Button to pick files
+    # Button to pick files (replace mode)
     pick_button = ft.ElevatedButton(
         "Upload Photos",
-        on_click=lambda _: file_picker.pick_files(
-            allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"]
+        on_click=lambda _: (
+            set_append_mode(False),
+            file_picker.pick_files(allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"]),
     ),)
+
+    def set_append_mode(value):
+        append_mode["value"] = value
+
+    # Add more button
+    add_button = ft.IconButton(
+        icon=ft.icons.ADD,
+        on_click=lambda _: (
+            set_append_mode(True),
+            file_picker.pick_files(allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"]),
+    ),)
+
+    # Delete selected button
+    def delete_selected(e):
+        to_delete = []
+        for i, ctrl in enumerate(photo_grid.controls):
+            checkbox = ctrl.content.controls[1]  # The checkbox is the second control in the column
+            if checkbox.value:
+                to_delete.append(i)
+        for i in sorted(to_delete, reverse=True):
+            del images[i]
+            del photo_grid.controls[i]
+        status.value = f"Deleted {len(to_delete)} images."
+        collage_preview.visible = False
+        page.update()
+
+    trash_button = ft.IconButton(icon=ft.icons.DELETE, on_click=delete_selected)
 
     # Function to find minimal canvas for a given ratio (height / width)
     def find_min_canvas(orig_sizes, num_images, ratio):
@@ -208,6 +256,12 @@ def main(page: ft.Page):
                     border=ft.border.all(1, ft.colors.BLACK),
                     border_radius=5,
                 ),
+                ft.Row([
+                    trash_button,
+                    add_button,
+                    ],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                ),
                 generate_button,
                 status,
                 ],
@@ -227,3 +281,4 @@ def main(page: ft.Page):
             vertical_alignment=ft.CrossAxisAlignment.START,
     ))
 
+ft.app(target=main)
