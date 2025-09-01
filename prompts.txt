@@ -27,3 +27,8 @@ In addition to giving out the message about the generated packed collage of phot
 
 Also, I want the app show the list of photos along with their final result look.
 Well I wanted the list of photos preview rather than their names and to be scrollable.
+
+============
+
+Can you make photo previews be shown in a scrollable grid. current state make other controls e.g. generate button go out of viewable window and screen area.
+
