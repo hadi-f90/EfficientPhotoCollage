@@ -41,6 +41,35 @@ def main(page: ft.Page):
             allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"]
     ),)
 
+    # Function to find minimal canvas for a given ratio (height / width)
+    def find_min_canvas(orig_sizes, num_images, ratio):
+        # Calculate requirements
+        min_side_req = max(min(w, h) for w, h in orig_sizes)
+        max_side_req = max(max(w, h) for w, h in orig_sizes)
+        low = max(min_side_req, math.ceil(max_side_req / ratio))
+        high = sum(max(w, h) for w, h in orig_sizes) * 2  # Upper bound
+
+        min_width = float('inf')
+        min_height = float('inf')
+
+        while low < high:
+            mid = (low + high) // 2
+            cw = mid
+            ch = int(mid * ratio)
+            packer = newPacker(rotation=True)
+            for i, (w, h) in enumerate(orig_sizes):
+                packer.add_rect(w, h, rid=i)
+            packer.add_bin(cw, ch)
+            packer.pack()
+            if len(packer.rect_list()) == num_images:
+                high = mid
+                min_width = cw
+                min_height = ch
+            else:
+                low = mid + 1
+
+        return min_width, min_height
+
     # Generate button
     def generate_layout(e):
         if not images:
@@ -48,8 +77,8 @@ def main(page: ft.Page):
             page.update()
             return
 
-        # A-series aspect ratio (height/width ≈ 1.414)
-        a_series_ratio = math.sqrt(2)  # ≈1.4142135623730951
+        # A-series aspect ratio (sqrt(2) ≈ 1.414)
+        a_series_ratio = math.sqrt(2)
 
         # Original sizes
         orig_sizes = [(img.width, img.height) for img in images]
@@ -60,33 +89,42 @@ def main(page: ft.Page):
             page.update()
             return
 
-        # Try packing with original sizes
-        # Start with a small canvas and scale up until all images fit
-        base_width = max(w for w, h in orig_sizes)  # Start with largest image width
-        scale = 1.0
-        step = 0.5
-        max_attempts = 20
+        # Find minimal canvas for portrait (tall) orientation
+        portrait_w, portrait_h = find_min_canvas(orig_sizes, num_images, a_series_ratio)
+        portrait_area = portrait_w * portrait_h if portrait_w != float('inf') else float('inf')
 
-        for _ in range(max_attempts):
-            canvas_width = int(base_width * scale)
-            canvas_height = int(canvas_width * a_series_ratio)
+        # Find minimal canvas for landscape (wide) orientation
+        landscape_w, landscape_h = find_min_canvas(orig_sizes, num_images, 1 / a_series_ratio)
+        landscape_area = landscape_w * landscape_h if landscape_w != float('inf') else float('inf')
 
-            packer = newPacker(rotation=True)
-            for i, (w, h) in enumerate(orig_sizes):
-                packer.add_rect(w, h, rid=i)
-            packer.add_bin(canvas_width, canvas_height)
-            packer.pack()
+        # Choose the orientation with smaller area (higher fill ratio)
+        if portrait_area <= landscape_area:
+            canvas_width = portrait_w
+            canvas_height = portrait_h
+            orientation = "portrait"
+        else:
+            canvas_width = landscape_w
+            canvas_height = landscape_h
+            orientation = "landscape"
 
-            if len(packer.rect_list()) == num_images:
-                break
-            scale += step  # Increase canvas size
-
-        if len(packer.rect_list()) != num_images:
-            status.value = "Could not fit all images even with larger canvas."
+        if canvas_width == float('inf'):
+            status.value = "Could not fit all images."
             page.update()
             return
 
-        # Create canvas with final dimensions
+        # Pack with the chosen size
+        packer = newPacker(rotation=True)
+        for i, (w, h) in enumerate(orig_sizes):
+            packer.add_rect(w, h, rid=i)
+        packer.add_bin(canvas_width, canvas_height)
+        packer.pack()
+
+        if len(packer.rect_list()) != num_images:
+            status.value = "Packing failed unexpectedly."
+            page.update()
+            return
+
+        # Create canvas
         canvas = Image.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
 
         # Place images on canvas
@@ -94,7 +132,8 @@ def main(page: ft.Page):
         for _, x, y, w, h, rid in all_rects:
             img = images[rid]
             # Determine if rotated
-            if w == img.height and h == img.width:
+            orig_w, orig_h = orig_sizes[rid]
+            if w == orig_h and h == orig_w:
                 img = img.rotate(90, expand=True)
             # Paste onto canvas without resizing
             canvas.paste(img, (x, y))
@@ -103,7 +142,7 @@ def main(page: ft.Page):
         output_path = "a_series_photo_layout.png"
         try:
             canvas.save(output_path)
-            status.value = f"Layout generated and saved as '{output_path}'. Canvas size: {canvas_width}x{canvas_height} pixels."
+            status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels."
         except Exception as ex:
             status.value = f"Error saving file: {str(ex)}"
 
@@ -115,7 +154,7 @@ def main(page: ft.Page):
     page.add(
         ft.Column([
             ft.Text(
-                "Upload multiple photos to generate a printable layout with A-series proportions."
+                "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
             ),
             pick_button,
             generate_button,

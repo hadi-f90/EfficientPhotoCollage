@@ -15,3 +15,6 @@ The app you created in fine. but I think  I found a library https://github.com/s
 ====================
 
 Can you change the program so that it would not resize the original photos before putting in final canvas. the only important things is that it keeps the proportion of final canvas in A paper series ones. no matter how big the final canvas would get.
+
+====================
+can you change it so that the photos would get as much area of canvas as possible. I want pictures almost fill all the canvas area.
