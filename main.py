@@ -16,6 +16,7 @@ def main(page: ft.Page):
     images = []
     file_paths = []
     scale_factors = []  # Scaling factor for each image (1.0 = original size)
+    area_percentages = []  # Store area percentage for each image after layout
 
     # Status text
     status = ft.Text("")
@@ -68,10 +69,7 @@ def main(page: ft.Page):
         visible=False,
     )
 
-    # File picker for multiple images
-    file_picker = ft.FilePicker(on_result=handle_upload)
-    page.overlay.append(file_picker)
-
+    # File picker for multiple images (defined after handle_upload)
     def handle_upload(e: ft.FilePickerResultEvent):
         if e.files:
             # Clear if no images exist to mimic initial upload
@@ -79,6 +77,7 @@ def main(page: ft.Page):
                 images.clear()
                 file_paths.clear()
                 scale_factors.clear()
+                area_percentages.clear()
                 photo_grid.controls.clear()
             added_count = 0
             for f in e.files:
@@ -91,11 +90,12 @@ def main(page: ft.Page):
                         img = img.convert("CMYK")
                     images.append(img)
                     file_paths.append(f.path)
-                    scale_factors.append(1.0)  # Initialize scale factor to 1.0 (original size)
+                    scale_factors.append(1.0)  # Initialize scale factor to 1.0
+                    area_percentages.append(0.0)  # Initialize area percentage
                     # Calculate scale percentage text and color
                     scale_pct = 0  # 100% is original size, 0% change
                     scale_color = ft.Colors.BLACK
-                    # Add image preview with checkbox and scale percentage to grid view
+                    # Add image preview with checkbox and scale/area percentage to grid view
                     photo_grid.controls.append(
                         ft.Container(
                             content=ft.Column([
@@ -107,8 +107,9 @@ def main(page: ft.Page):
                                     border_radius=5,
                                 ),
                                 ft.Checkbox(label=""),
-                                ft.Text(value=f"{scale_pct}%", size=12, color=scale_color),
-                                ],
+                                ft.Text(
+                                    value=f"Scale: {scale_pct}%", size=12, color=scale_color
+                                ),],
                                 alignment=ft.MainAxisAlignment.CENTER,
                                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                             ),
@@ -125,6 +126,9 @@ def main(page: ft.Page):
             collage_preview.visible = False
             page.update()
 
+    file_picker = ft.FilePicker(on_result=handle_upload)
+    page.overlay.append(file_picker)
+
     # Add more button
     add_button = ft.IconButton(
         icon=ft.Icons.ADD,
@@ -136,16 +140,23 @@ def main(page: ft.Page):
     def delete_selected(e):
         to_delete = []
         for i, ctrl in enumerate(photo_grid.controls):
-            checkbox = ctrl.content.controls[1]  # The checkbox is the second control in the column
+            checkbox = ctrl.content.controls[1]
             if checkbox.value:
                 to_delete.append(i)
         for i in sorted(to_delete, reverse=True):
             del images[i]
             del file_paths[i]
             del scale_factors[i]
+            del area_percentages[i]
             del photo_grid.controls[i]
         status.value = f"Deleted {len(to_delete)} images."
         collage_preview.visible = False
+        # Reset area percentages in grid
+        for i, ctrl in enumerate(photo_grid.controls):
+            scale_pct = int((scale_factors[i] - 1.0) * 100)
+            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
+            ctrl.content.controls[2].color = scale_color
         page.update()
 
     trash_button = ft.IconButton(icon=ft.Icons.DELETE, on_click=delete_selected)
@@ -161,13 +172,19 @@ def main(page: ft.Page):
             scale_factors[i] *= 1.1
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[2].value = f"{scale_pct}%"
+            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
             ctrl.content.controls[2].color = scale_color
         if selected_count == 0:
             status.value = "No photos selected to increase size."
         else:
             status.value = f"Increased size of {selected_count} selected photos by 10%."
         collage_preview.visible = False
+        # Reset area percentages in grid
+        for i, ctrl in enumerate(photo_grid.controls):
+            scale_pct = int((scale_factors[i] - 1.0) * 100)
+            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
+            ctrl.content.controls[2].color = scale_color
         page.update()
 
     increase_button = ft.IconButton(
@@ -186,13 +203,19 @@ def main(page: ft.Page):
             scale_factors[i] = max(scale_factors[i], 0.1)
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[2].value = f"{scale_pct}%"
+            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
             ctrl.content.controls[2].color = scale_color
         if selected_count == 0:
             status.value = "No photos selected to decrease size."
         else:
             status.value = f"Decreased size of {selected_count} selected photos by 10%."
         collage_preview.visible = False
+        # Reset area percentages in grid
+        for i, ctrl in enumerate(photo_grid.controls):
+            scale_pct = int((scale_factors[i] - 1.0) * 100)
+            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
+            ctrl.content.controls[2].color = scale_color
         page.update()
 
     decrease_button = ft.IconButton(
@@ -304,12 +327,21 @@ def main(page: ft.Page):
             page.update()
             return None, None, None
 
-        # Calculate unused area percentage
-        total_image_area = sum(
-            (w * s + 2 * padding) * (h * s + 2 * padding)
-            for (w, h), s in zip(orig_sizes, scale_factors)
-        )
+        # Calculate unused area percentage and individual area percentages
         canvas_area = canvas_width * canvas_height
+        total_image_area = 0
+        area_percentages.clear()
+        all_rects = packer.rect_list()
+        for _, x, y, w, h, rid in all_rects:
+            # Calculate area for each image (including padding)
+            image_area = w * h
+            total_image_area += image_area
+            if canvas_area > 0:
+                area_pct = (image_area / canvas_area) * 100
+            else:
+                area_pct = 0.0
+            area_percentages.append(area_pct)
+
         if canvas_area > 0:
             unused_pct = ((canvas_area - total_image_area) / canvas_area) * 100
         else:
@@ -324,7 +356,6 @@ def main(page: ft.Page):
         )
 
         # Place images on canvas with padding
-        all_rects = packer.rect_list()
         for _, x, y, w, h, rid in all_rects:
             img = images[rid]
             # Determine if rotated
@@ -345,6 +376,14 @@ def main(page: ft.Page):
             padded_img.paste(img_resized, (padding, padding))
             # Paste padded image onto canvas
             canvas.paste(padded_img, (x, y))
+
+        # Update grid with area percentages
+        for i, ctrl in enumerate(photo_grid.controls):
+            scale_pct = int((scale_factors[i] - 1.0) * 100)
+            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+            area_pct = area_percentages[i]
+            ctrl.content.controls[2].value = f"Scale: {scale_pct}%\nArea: {area_pct:.2f}%"
+            ctrl.content.controls[2].color = scale_color
 
         # Generate unique filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -435,6 +474,15 @@ def main(page: ft.Page):
         for ctrl in photo_grid.controls:
             ctrl.content.controls[0].width = max_extent - 20
             ctrl.content.controls[0].height = max_extent - 20
+            # Reset to scale percentage only on resize
+            scale_pct = int((scale_factors[photo_grid.controls.index(ctrl)] - 1.0) * 100)
+            scale_color = (
+                ft.Colors.GREEN
+                if scale_factors[photo_grid.controls.index(ctrl)] >= 1.0
+                else ft.Colors.RED
+            )
+            ctrl.content.controls[2].value = f"Scale: {scale_pct}%"
+            ctrl.content.controls[2].color = scale_color
         collage_preview.width = page.width * 0.4 / a_series_ratio
         collage_preview.height = page.height * 0.4
         page.update()
