@@ -1,4 +1,5 @@
 import math
+from datetime import datetime
 
 import flet as ft
 from PIL import Image
@@ -304,11 +305,14 @@ def main(page: ft.Page):
             img_resized = img.resize((w, h), Image.Resampling.LANCZOS)
             canvas.paste(img_resized, (x, y))
 
-        # Save the output
-        output_path = (
-            "a_series_photo_layout.tiff" if cmyk_mode.value else "a_series_photo_layout.png"
+        # Generate unique filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_ext = "tiff" if cmyk_mode.value else "png"
+        output_path = f"a_series_photo_layout_{timestamp}.{file_ext}"
+        preview_path = (
+            f"a_series_photo_layout_preview_{timestamp}.png" if cmyk_mode.value else output_path
         )
-        preview_path = "a_series_photo_layout_preview.png" if cmyk_mode.value else output_path
+
         try:
             canvas.save(output_path)
             if cmyk_mode.value:
