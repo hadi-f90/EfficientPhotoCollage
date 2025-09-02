@@ -110,3 +110,11 @@ Can you change the position of percentage text  and checkbox from below the phot
 -----
 I got error when loading photos:
 Error loading ***.jpg: Colors.with_opacity() missing one required positional argument 'color'
+==============
+==============
+In code canvas, I pasted the most recent update of code which kinda worked flawlessley - apart from the minor ui problems.
+I want you to Add the ability to drag and drop photo files to preview grid, so that I can add photos by dragging them from file manager
+
+==============
+===================
+Didn't work either. forget about it. I, again, pasted the most recent working version without drag and drop changes. Now,  add select and deselect all, invert and clear current selection below preview grid with their appropriate icons along with other preview editing buttons. also, move add file button before trash button which is for removing photos from list

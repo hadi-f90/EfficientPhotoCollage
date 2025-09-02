@@ -12,14 +12,14 @@ def main(page: ft.Page):
     page.padding = 10
     page.update()
 
-    # List to hold loaded images, their file paths, and scaling factors
+    # Lists to hold loaded images, their file paths, and scaling factors
     images = []
     file_paths = []
     scale_factors = []  # Scaling factor for each image (1.0 = original size)
     area_percentages = []  # Store area percentage for each image after layout
 
     # Status text
-    status = ft.Text("")
+    status = ft.Text("", size=14)
 
     # Checkbox for CMYK mode
     cmyk_mode = ft.Checkbox(
@@ -40,22 +40,21 @@ def main(page: ft.Page):
 
     # Grid view for uploaded photo previews
     def get_grid_params():
-        # Adjust grid parameters based on screen width
         screen_width = page.width
         if screen_width < 600:  # Mobile
-            return 2, 120  # 2 columns, smaller images
+            return 2, 150
         if screen_width < 900:  # Tablet
-            return 3, 130
-        return 4, 150
+            return 3, 170
+        return 4, 190
 
     runs_count, max_extent = get_grid_params()
     photo_grid = ft.GridView(
         expand=True,
         runs_count=runs_count,
         max_extent=max_extent,
-        spacing=10,
-        run_spacing=10,
-        padding=10,
+        spacing=30,
+        run_spacing=30,
+        padding=30,
         auto_scroll=True,
     )
 
@@ -63,16 +62,15 @@ def main(page: ft.Page):
     a_series_ratio = math.sqrt(2)
     collage_preview = ft.Image(
         src="",
-        width=page.width * 0.4 / a_series_ratio,  # 40% of screen width, adjusted for aspect ratio
-        height=page.height * 0.4,  # 40% of screen height
+        width=page.width * 0.4 / a_series_ratio,
+        height=page.height * 0.4,
         fit=ft.ImageFit.CONTAIN,
         visible=False,
     )
 
-    # File picker for multiple images (defined after handle_upload)
+    # File picker handler
     def handle_upload(e: ft.FilePickerResultEvent):
         if e.files:
-            # Clear if no images exist to mimic initial upload
             if not images:
                 images.clear()
                 file_paths.clear()
@@ -83,38 +81,44 @@ def main(page: ft.Page):
             for f in e.files:
                 if f.path in file_paths:
                     continue  # Skip duplicate files
+                if not f.path.lower().endswith(('.jpg', '.jpeg', '.png')):
+                    status.value = f"Skipped {f.name}: Only JPG and PNG files are supported."
+                    continue
                 try:
                     img = Image.open(f.path)
-                    # Convert to CMYK if selected
                     if cmyk_mode.value:
                         img = img.convert("CMYK")
                     images.append(img)
                     file_paths.append(f.path)
-                    scale_factors.append(1.0)  # Initialize scale factor to 1.0
-                    area_percentages.append(0.0)  # Initialize area percentage
-                    # Calculate scale percentage text and color
-                    scale_pct = 0  # 100% is original size, 0% change
+                    scale_factors.append(1.0)
+                    area_percentages.append(0.0)
+                    scale_pct = 0
                     scale_color = ft.Colors.BLACK
-                    # Add image preview with percentage text above checkbox
                     photo_grid.controls.append(
                         ft.Container(
                             content=ft.Column([
                                 ft.Image(
                                     src=f.path,
-                                    width=max_extent - 20,
-                                    height=max_extent - 20,
+                                    width=max_extent - 40,
+                                    height=max_extent - 40,
                                     fit=ft.ImageFit.CONTAIN,
                                     border_radius=5,
                                 ),
                                 ft.Text(
-                                    value=f"Scale: {scale_pct}%", size=12, color=scale_color
+                                    value=f"Scale: {scale_pct}%",
+                                    size=12,
+                                    color=scale_color,
+                                    text_align=ft.TextAlign.CENTER,
                                 ),
                                 ft.Checkbox(label=""),
                                 ],
                                 alignment=ft.MainAxisAlignment.CENTER,
                                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                                spacing=8,
                             ),
                             alignment=ft.alignment.center,
+                            padding=10,
+                            border=ft.border.all(1, ft.Colors.GREY_300),
                     ))
                     added_count += 1
                 except Exception as ex:
@@ -141,7 +145,7 @@ def main(page: ft.Page):
     def delete_selected(e):
         to_delete = []
         for i, ctrl in enumerate(photo_grid.controls):
-            checkbox = ctrl.content.controls[2]  # Checkbox is now third control
+            checkbox = ctrl.content.controls[2]
             if checkbox.value:
                 to_delete.append(i)
         for i in sorted(to_delete, reverse=True):
@@ -152,7 +156,6 @@ def main(page: ft.Page):
             del photo_grid.controls[i]
         status.value = f"Deleted {len(to_delete)} images."
         collage_preview.visible = False
-        # Reset area percentages in grid
         for i, ctrl in enumerate(photo_grid.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
@@ -162,11 +165,79 @@ def main(page: ft.Page):
 
     trash_button = ft.IconButton(icon=ft.Icons.DELETE, on_click=delete_selected)
 
+    # Select all button
+    def select_all(e):
+        selected_count = 0
+        for ctrl in photo_grid.controls:
+            checkbox = ctrl.content.controls[2]
+            if not checkbox.value:
+                checkbox.value = True
+                selected_count += 1
+        status.value = (
+            f"Selected {selected_count} images."
+            if selected_count > 0
+            else "All images already selected."
+        )
+        page.update()
+
+    select_all_button = ft.IconButton(icon=ft.Icons.CHECK_BOX, on_click=select_all)
+
+    # Deselect all button
+    def deselect_all(e):
+        deselected_count = 0
+        for ctrl in photo_grid.controls:
+            checkbox = ctrl.content.controls[2]
+            if checkbox.value:
+                checkbox.value = False
+                deselected_count += 1
+        status.value = (
+            f"Deselected {deselected_count} images."
+            if deselected_count > 0
+            else "No images were selected."
+        )
+        page.update()
+
+    deselect_all_button = ft.IconButton(
+        icon=ft.Icons.CHECK_BOX_OUTLINE_BLANK, on_click=deselect_all
+    )
+
+    # Invert selection button
+    def invert_selection(e):
+        inverted_count = 0
+        for ctrl in photo_grid.controls:
+            checkbox = ctrl.content.controls[2]
+            checkbox.value = not checkbox.value
+            inverted_count += 1
+        status.value = (
+            f"Inverted selection for {inverted_count} images."
+            if inverted_count > 0
+            else "No images to invert."
+        )
+        page.update()
+
+    invert_selection_button = ft.IconButton(icon=ft.Icons.SWAP_HORIZ, on_click=invert_selection)
+
+    # Clear current selection button
+    def clear_selection(e):
+        if not images:
+            status.value = "No images to clear."
+        else:
+            images.clear()
+            file_paths.clear()
+            scale_factors.clear()
+            area_percentages.clear()
+            photo_grid.controls.clear()
+            status.value = "Cleared all images."
+            collage_preview.visible = False
+        page.update()
+
+    clear_selection_button = ft.IconButton(icon=ft.Icons.CLEAR_ALL, on_click=clear_selection)
+
     # Increase size button
     def increase_size(e):
         selected_count = 0
         for i, ctrl in enumerate(photo_grid.controls):
-            checkbox = ctrl.content.controls[2]  # Checkbox is now third control
+            checkbox = ctrl.content.controls[2]
             if not checkbox.value:
                 continue
             selected_count += 1
@@ -180,7 +251,6 @@ def main(page: ft.Page):
         else:
             status.value = f"Increased size of {selected_count} selected photos by 10%."
         collage_preview.visible = False
-        # Reset area percentages in grid
         for i, ctrl in enumerate(photo_grid.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
@@ -196,7 +266,7 @@ def main(page: ft.Page):
     def decrease_size(e):
         selected_count = 0
         for i, ctrl in enumerate(photo_grid.controls):
-            checkbox = ctrl.content.controls[2]  # Checkbox is now third control
+            checkbox = ctrl.content.controls[2]
             if not checkbox.value:
                 continue
             selected_count += 1
@@ -211,7 +281,6 @@ def main(page: ft.Page):
         else:
             status.value = f"Decreased size of {selected_count} selected photos by 10%."
         collage_preview.visible = False
-        # Reset area percentages in grid
         for i, ctrl in enumerate(photo_grid.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
@@ -225,11 +294,10 @@ def main(page: ft.Page):
 
     # Function to find minimal canvas for a given ratio (height / width)
     def find_min_canvas(orig_sizes, num_images, ratio):
-        # Get padding value
         padding = (
             int(padding_size.value) if padding_enabled.value and padding_size.value.isdigit() else 0
         )
-        padding = max(0, padding)  # Ensure non-negative
+        padding = max(0, padding)
         min_side_req = max(
             min(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors)
         )
@@ -239,7 +307,7 @@ def main(page: ft.Page):
         low = max(min_side_req, math.ceil(max_side_req / ratio))
         high = (
             sum(max(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors)) * 2
-        )  # Upper bound
+        )
 
         min_width = float('inf')
         min_height = float('inf')
@@ -252,7 +320,6 @@ def main(page: ft.Page):
             for i, (w, h) in enumerate(orig_sizes):
                 scaled_w = max(1, int(w * scale_factors[i]))
                 scaled_h = max(1, int(h * scale_factors[i]))
-                # Add padding to dimensions for packing
                 packer.add_rect(scaled_w + 2 * padding, scaled_h + 2 * padding, rid=i)
             packer.add_bin(cw, ch)
             packer.pack()
@@ -272,10 +339,7 @@ def main(page: ft.Page):
             page.update()
             return None, None, None
 
-        # A-series aspect ratio (sqrt(2) ≈ 1.414)
         a_series_ratio = math.sqrt(2)
-
-        # Original sizes
         orig_sizes = [(img.width, img.height) for img in images]
         num_images = len(images)
 
@@ -284,21 +348,16 @@ def main(page: ft.Page):
             page.update()
             return None, None, None
 
-        # Get padding value
         padding = (
             int(padding_size.value) if padding_enabled.value and padding_size.value.isdigit() else 0
         )
-        padding = max(0, padding)  # Ensure non-negative
+        padding = max(0, padding)
 
-        # Find minimal canvas for portrait (tall) orientation
         portrait_w, portrait_h = find_min_canvas(orig_sizes, num_images, a_series_ratio)
         portrait_area = portrait_w * portrait_h if portrait_w != float('inf') else float('inf')
-
-        # Find minimal canvas for landscape (wide) orientation
         landscape_w, landscape_h = find_min_canvas(orig_sizes, num_images, 1 / a_series_ratio)
         landscape_area = landscape_w * landscape_h if landscape_w != float('inf') else float('inf')
 
-        # Choose the orientation with smaller area (higher fill ratio)
         if portrait_area <= landscape_area:
             canvas_width = portrait_w
             canvas_height = portrait_h
@@ -313,12 +372,10 @@ def main(page: ft.Page):
             page.update()
             return None, None, None
 
-        # Pack with the chosen size
         packer = newPacker(rotation=True)
         for i, (w, h) in enumerate(orig_sizes):
             scaled_w = max(1, int(w * scale_factors[i]))
             scaled_h = max(1, int(h * scale_factors[i]))
-            # Add padding to dimensions for packing
             packer.add_rect(scaled_w + 2 * padding, scaled_h + 2 * padding, rid=i)
         packer.add_bin(canvas_width, canvas_height)
         packer.pack()
@@ -328,14 +385,17 @@ def main(page: ft.Page):
             page.update()
             return None, None, None
 
-        # Calculate unused area percentage and individual area percentages
         canvas_area = canvas_width * canvas_height
         total_image_area = 0
         area_percentages.clear()
         all_rects = packer.rect_list()
         for _, x, y, w, h, rid in all_rects:
-            # Calculate area for each image (including padding)
-            image_area = w * h
+            orig_w, orig_h = orig_sizes[rid]
+            scaled_w = max(1, int(orig_w * scale_factors[rid]))
+            scaled_h = max(1, int(orig_h * scale_factors[rid]))
+            if w == scaled_h + 2 * padding and h == scaled_w + 2 * padding:
+                scaled_w, scaled_h = scaled_h, scaled_w
+            image_area = scaled_w * scaled_h
             total_image_area += image_area
             if canvas_area > 0:
                 area_pct = (image_area / canvas_area) * 100
@@ -348,7 +408,6 @@ def main(page: ft.Page):
         else:
             unused_pct = 0.0
 
-        # Create canvas
         mode = "CMYK" if cmyk_mode.value else "RGB"
         canvas = Image.new(
             mode,
@@ -356,29 +415,23 @@ def main(page: ft.Page):
             (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0),
         )
 
-        # Place images on canvas with padding
         for _, x, y, w, h, rid in all_rects:
             img = images[rid]
-            # Determine if rotated
             orig_w, orig_h = orig_sizes[rid]
             scaled_w = max(1, int(orig_w * scale_factors[rid]))
             scaled_h = max(1, int(orig_h * scale_factors[rid]))
             if w == scaled_h + 2 * padding and h == scaled_w + 2 * padding:
                 img = img.rotate(90, expand=True)
-                scaled_w, scaled_h = scaled_h, scaled_w  # Swap dimensions for rotated image
-            # Resize image to scaled dimensions (without padding)
+                scaled_w, scaled_h = scaled_h, scaled_w
             img_resized = img.resize((scaled_w, scaled_h), Image.Resampling.LANCZOS)
-            # Create a new image with padding
             padded_w = scaled_w + 2 * padding
             padded_h = scaled_h + 2 * padding
             padded_img = Image.new(
                 mode, (padded_w, padded_h), (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0)
             )
             padded_img.paste(img_resized, (padding, padding))
-            # Paste padded image onto canvas
             canvas.paste(padded_img, (x, y))
 
-        # Update grid with area percentages
         for i, ctrl in enumerate(photo_grid.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
@@ -386,7 +439,6 @@ def main(page: ft.Page):
             ctrl.content.controls[1].value = f"Scale: {scale_pct}%\nArea: {area_pct:.2f}%"
             ctrl.content.controls[1].color = scale_color
 
-        # Generate unique filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         file_ext = "tiff" if cmyk_mode.value else "png"
         output_path = f"a_series_photo_layout_{timestamp}.{file_ext}"
@@ -397,11 +449,9 @@ def main(page: ft.Page):
         try:
             canvas.save(output_path)
             if cmyk_mode.value:
-                # Convert CMYK to RGB for preview
                 rgb_canvas = canvas.convert("RGB")
                 rgb_canvas.save(preview_path)
             if not save_only:
-                # Update preview
                 collage_preview.src = preview_path
                 collage_preview.visible = True
                 status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%. Open this file in an image viewer to print."
@@ -412,38 +462,42 @@ def main(page: ft.Page):
             page.update()
             return None, None, None
 
-    # Generate button
     generate_button = ft.ElevatedButton(
         "Generate A-Series Layout", on_click=lambda e: generate_layout()
     )
 
-    # Responsive layout wrapped in a scrollable column
     page.add(
         ft.Column([
             ft.ResponsiveRow([
                 ft.Column(
-                    col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
+                    col={"xs": 12, "md": 6},
                     controls=[
                         ft.Text(
-                            "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area."
+                            "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area.",
+                            size=14,
                         ),
                         cmyk_mode,
                         padding_enabled,
                         padding_size,
-                        ft.Text("Uploaded Photos:"),
+                        ft.Text("Uploaded Photos:", size=14),
                         ft.Container(
                             content=photo_grid,
-                            height=page.height * 0.4,  # 40% of screen height
+                            height=page.height * 0.4,
                             border=ft.border.all(1, ft.Colors.BLACK),
                             border_radius=5,
                         ),
                         ft.Row([
+                            add_button,  # Moved before trash_button
                             trash_button,
-                            add_button,
                             increase_button,
                             decrease_button,
+                            select_all_button,
+                            deselect_all_button,
+                            invert_selection_button,
+                            clear_selection_button,
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
+                            spacing=10,
                         ),
                         generate_button,
                         status,
@@ -452,9 +506,9 @@ def main(page: ft.Page):
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
                 ft.Column(
-                    col={"xs": 12, "md": 6},  # Full width on small screens, half on medium+
+                    col={"xs": 12, "md": 6},
                     controls=[
-                        ft.Text("Collage Preview:"),
+                        ft.Text("Collage Preview:", size=14),
                         collage_preview,
                     ],
                     alignment=ft.MainAxisAlignment.START,
@@ -463,19 +517,17 @@ def main(page: ft.Page):
                 alignment=ft.MainAxisAlignment.CENTER,
                 vertical_alignment=ft.CrossAxisAlignment.START,
             )],
-            scroll=ft.ScrollMode.AUTO,  # Enable vertical scrolling
+            scroll=ft.ScrollMode.AUTO,
             expand=True,
     ))
 
-    # Update layout on window resize
     def on_resize(e):
         runs_count, max_extent = get_grid_params()
         photo_grid.runs_count = runs_count
         photo_grid.max_extent = max_extent
         for ctrl in photo_grid.controls:
-            ctrl.content.controls[0].width = max_extent - 20
-            ctrl.content.controls[0].height = max_extent - 20
-            # Reset to scale percentage only on resize
+            ctrl.content.controls[0].width = max_extent - 40
+            ctrl.content.controls[0].height = max_extent - 40
             scale_pct = int((scale_factors[photo_grid.controls.index(ctrl)] - 1.0) * 100)
             scale_color = (
                 ft.Colors.GREEN
