@@ -1,4 +1,5 @@
 import math
+import os
 from datetime import datetime
 
 import flet as ft
@@ -38,25 +39,17 @@ def main(page: ft.Page):
 
     padding_enabled.on_change = on_padding_toggle
 
-    # Grid view for uploaded photo previews
-    def get_grid_params():
+    # List view for uploaded photo previews
+    def get_list_params():
         screen_width = page.width
         if screen_width < 600:  # Mobile
-            return 2, 150
+            return 100  # Smaller photo preview
         if screen_width < 900:  # Tablet
-            return 3, 170
-        return 4, 190
+            return 120
+        return 150
 
-    runs_count, max_extent = get_grid_params()
-    photo_grid = ft.GridView(
-        expand=True,
-        runs_count=runs_count,
-        max_extent=max_extent,
-        spacing=30,
-        run_spacing=30,
-        padding=30,
-        auto_scroll=True,
-    )
+    photo_size = get_list_params()
+    photo_list = ft.ListView(expand=True, spacing=10, padding=15, auto_scroll=True)
 
     # Image control for previewing the final collage
     a_series_ratio = math.sqrt(2)
@@ -76,7 +69,7 @@ def main(page: ft.Page):
                 file_paths.clear()
                 scale_factors.clear()
                 area_percentages.clear()
-                photo_grid.controls.clear()
+                photo_list.controls.clear()
             added_count = 0
             for f in e.files:
                 if f.path in file_paths:
@@ -94,32 +87,49 @@ def main(page: ft.Page):
                     area_percentages.append(0.0)
                     scale_pct = 0
                     scale_color = ft.Colors.BLACK
-                    photo_grid.controls.append(
-                        ft.Container(
-                            content=ft.Column([
+                    file_name = os.path.basename(f.path)
+                    dimensions = f"{img.width}x{img.height}"
+                    photo_list.controls.append(
+                        ft.Column([
+                            ft.Row([
+                                ft.Checkbox(label=""),
                                 ft.Image(
                                     src=f.path,
-                                    width=max_extent - 40,
-                                    height=max_extent - 40,
+                                    width=photo_size,
+                                    height=photo_size,
                                     fit=ft.ImageFit.CONTAIN,
                                     border_radius=5,
+                                ),
+                                ft.Text(
+                                    file_name,
+                                    size=12,
+                                    width=150,
+                                    text_align=ft.TextAlign.LEFT,
+                                ),
+                                ft.Text(
+                                    dimensions,
+                                    size=12,
+                                    width=100,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
+                                ft.Text(
+                                    "Area: 0.00%",
+                                    size=12,
+                                    width=100,
+                                    text_align=ft.TextAlign.CENTER,
                                 ),
                                 ft.Text(
                                     value=f"Scale: {scale_pct}%",
                                     size=12,
                                     color=scale_color,
+                                    width=100,
                                     text_align=ft.TextAlign.CENTER,
-                                ),
-                                ft.Checkbox(label=""),
-                                ],
-                                alignment=ft.MainAxisAlignment.CENTER,
-                                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                                spacing=8,
+                                ),],
+                                alignment=ft.MainAxisAlignment.START,
+                                spacing=10,
                             ),
-                            alignment=ft.alignment.center,
-                            padding=10,
-                            border=ft.border.all(1, ft.Colors.GREY_300),
-                    ))
+                            ft.Divider(),
+                    ]))
                     added_count += 1
                 except Exception as ex:
                     status.value = f"Error loading {f.name}: {str(ex)}"
@@ -134,7 +144,7 @@ def main(page: ft.Page):
     file_picker = ft.FilePicker(on_result=handle_upload)
     page.overlay.append(file_picker)
 
-    # Add more button
+    # Add file button
     add_button = ft.IconButton(
         icon=ft.Icons.ADD,
         on_click=lambda _: file_picker.pick_files(
@@ -144,8 +154,8 @@ def main(page: ft.Page):
     # Delete selected button
     def delete_selected(e):
         to_delete = []
-        for i, ctrl in enumerate(photo_grid.controls):
-            checkbox = ctrl.content.controls[2]
+        for i, ctrl in enumerate(photo_list.controls):
+            checkbox = ctrl.controls[0].controls[0]  # Checkbox in Row
             if checkbox.value:
                 to_delete.append(i)
         for i in sorted(to_delete, reverse=True):
@@ -153,23 +163,83 @@ def main(page: ft.Page):
             del file_paths[i]
             del scale_factors[i]
             del area_percentages[i]
-            del photo_grid.controls[i]
+            del photo_list.controls[i]
         status.value = f"Deleted {len(to_delete)} images."
         collage_preview.visible = False
-        for i, ctrl in enumerate(photo_grid.controls):
+        for i, ctrl in enumerate(photo_list.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[1].color = scale_color
+            ctrl.controls[0].controls[4].value = f"Scale: {scale_pct}%"
+            ctrl.controls[0].controls[4].color = scale_color
+            ctrl.controls[0].controls[3].value = "Area: 0.00%"
         page.update()
 
     trash_button = ft.IconButton(icon=ft.Icons.DELETE, on_click=delete_selected)
 
+    # Increase size button
+    def increase_size(e):
+        selected_count = 0
+        for i, ctrl in enumerate(photo_list.controls):
+            checkbox = ctrl.controls[0].controls[0]
+            if not checkbox.value:
+                continue
+            selected_count += 1
+            scale_factors[i] *= 1.1
+            scale_pct = int((scale_factors[i] - 1.0) * 100)
+            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+            ctrl.controls[0].controls[4].value = f"Scale: {scale_pct}%"
+            ctrl.controls[0].controls[4].color = scale_color
+        if selected_count == 0:
+            status.value = "No photos selected to increase size."
+        else:
+            status.value = f"Increased size of {selected_count} selected photos by 10%."
+        collage_preview.visible = False
+        for i, ctrl in enumerate(photo_list.controls):
+            scale_pct = int((scale_factors[i] - 1.0) * 100)
+            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+            ctrl.controls[0].controls[4].value = f"Scale: {scale_pct}%"
+            ctrl.controls[0].controls[4].color = scale_color
+        page.update()
+
+    increase_button = ft.IconButton(
+        icon=ft.Icons.ZOOM_IN, icon_color=ft.Colors.GREEN, on_click=increase_size
+    )
+
+    # Decrease size button
+    def decrease_size(e):
+        selected_count = 0
+        for i, ctrl in enumerate(photo_list.controls):
+            checkbox = ctrl.controls[0].controls[0]
+            if not checkbox.value:
+                continue
+            selected_count += 1
+            scale_factors[i] /= 1.1
+            scale_factors[i] = max(scale_factors[i], 0.1)
+            scale_pct = int((scale_factors[i] - 1.0) * 100)
+            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+            ctrl.controls[0].controls[4].value = f"Scale: {scale_pct}%"
+            ctrl.controls[0].controls[4].color = scale_color
+        if selected_count == 0:
+            status.value = "No photos selected to decrease size."
+        else:
+            status.value = f"Decreased size of {selected_count} selected photos by 10%."
+        collage_preview.visible = False
+        for i, ctrl in enumerate(photo_list.controls):
+            scale_pct = int((scale_factors[i] - 1.0) * 100)
+            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
+            ctrl.controls[0].controls[4].value = f"Scale: {scale_pct}%"
+            ctrl.controls[0].controls[4].color = scale_color
+        page.update()
+
+    decrease_button = ft.IconButton(
+        icon=ft.Icons.ZOOM_OUT, icon_color=ft.Colors.RED, on_click=decrease_size
+    )
+
     # Select all button
     def select_all(e):
         selected_count = 0
-        for ctrl in photo_grid.controls:
-            checkbox = ctrl.content.controls[2]
+        for ctrl in photo_list.controls:
+            checkbox = ctrl.controls[0].controls[0]
             if not checkbox.value:
                 checkbox.value = True
                 selected_count += 1
@@ -180,13 +250,15 @@ def main(page: ft.Page):
         )
         page.update()
 
-    select_all_button = ft.IconButton(icon=ft.Icons.CHECK_BOX, on_click=select_all)
+    select_all_button = ft.IconButton(
+        icon=ft.Icons.CHECK_BOX, icon_color=ft.Colors.BLUE, on_click=select_all
+    )
 
     # Deselect all button
     def deselect_all(e):
         deselected_count = 0
-        for ctrl in photo_grid.controls:
-            checkbox = ctrl.content.controls[2]
+        for ctrl in photo_list.controls:
+            checkbox = ctrl.controls[0].controls[0]
             if checkbox.value:
                 checkbox.value = False
                 deselected_count += 1
@@ -198,98 +270,43 @@ def main(page: ft.Page):
         page.update()
 
     deselect_all_button = ft.IconButton(
-        icon=ft.Icons.CHECK_BOX_OUTLINE_BLANK, on_click=deselect_all
+        icon=ft.Icons.CHECK_BOX_OUTLINE_BLANK, icon_color=ft.Colors.BLUE, on_click=deselect_all
     )
 
     # Invert selection button
     def invert_selection(e):
-        inverted_count = 0
-        for ctrl in photo_grid.controls:
-            checkbox = ctrl.content.controls[2]
+        toggled_count = 0
+        for ctrl in photo_list.controls:
+            checkbox = ctrl.controls[0].controls[0]
             checkbox.value = not checkbox.value
-            inverted_count += 1
+            toggled_count += 1
         status.value = (
-            f"Inverted selection for {inverted_count} images."
-            if inverted_count > 0
+            f"Inverted selection for {toggled_count} images."
+            if toggled_count > 0
             else "No images to invert."
         )
         page.update()
 
-    invert_selection_button = ft.IconButton(icon=ft.Icons.SWAP_HORIZ, on_click=invert_selection)
+    invert_selection_button = ft.IconButton(
+        icon=ft.Icons.SWAP_HORIZ, icon_color=ft.Colors.BLUE, on_click=invert_selection
+    )
 
     # Clear current selection button
     def clear_selection(e):
-        if not images:
-            status.value = "No images to clear."
-        else:
+        if images:
             images.clear()
             file_paths.clear()
             scale_factors.clear()
             area_percentages.clear()
-            photo_grid.controls.clear()
+            photo_list.controls.clear()
             status.value = "Cleared all images."
             collage_preview.visible = False
-        page.update()
-
-    clear_selection_button = ft.IconButton(icon=ft.Icons.CLEAR_ALL, on_click=clear_selection)
-
-    # Increase size button
-    def increase_size(e):
-        selected_count = 0
-        for i, ctrl in enumerate(photo_grid.controls):
-            checkbox = ctrl.content.controls[2]
-            if not checkbox.value:
-                continue
-            selected_count += 1
-            scale_factors[i] *= 1.1
-            scale_pct = int((scale_factors[i] - 1.0) * 100)
-            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[1].color = scale_color
-        if selected_count == 0:
-            status.value = "No photos selected to increase size."
+            page.update()
         else:
-            status.value = f"Increased size of {selected_count} selected photos by 10%."
-        collage_preview.visible = False
-        for i, ctrl in enumerate(photo_grid.controls):
-            scale_pct = int((scale_factors[i] - 1.0) * 100)
-            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[1].color = scale_color
-        page.update()
+            status.value = "No images to clear."
 
-    increase_button = ft.IconButton(
-        icon=ft.Icons.ZOOM_IN, icon_color=ft.Colors.GREEN, on_click=increase_size
-    )
-
-    # Decrease size button
-    def decrease_size(e):
-        selected_count = 0
-        for i, ctrl in enumerate(photo_grid.controls):
-            checkbox = ctrl.content.controls[2]
-            if not checkbox.value:
-                continue
-            selected_count += 1
-            scale_factors[i] /= 1.1
-            scale_factors[i] = max(scale_factors[i], 0.1)
-            scale_pct = int((scale_factors[i] - 1.0) * 100)
-            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[1].color = scale_color
-        if selected_count == 0:
-            status.value = "No photos selected to decrease size."
-        else:
-            status.value = f"Decreased size of {selected_count} selected photos by 10%."
-        collage_preview.visible = False
-        for i, ctrl in enumerate(photo_grid.controls):
-            scale_pct = int((scale_factors[i] - 1.0) * 100)
-            scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
-            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[1].color = scale_color
-        page.update()
-
-    decrease_button = ft.IconButton(
-        icon=ft.Icons.ZOOM_OUT, icon_color=ft.Colors.RED, on_click=decrease_size
+    clear_selection_button = ft.IconButton(
+        icon=ft.Icons.CLEAR_ALL, icon_color=ft.Colors.RED, on_click=clear_selection
     )
 
     # Function to find minimal canvas for a given ratio (height / width)
@@ -432,12 +449,13 @@ def main(page: ft.Page):
             padded_img.paste(img_resized, (padding, padding))
             canvas.paste(padded_img, (x, y))
 
-        for i, ctrl in enumerate(photo_grid.controls):
+        for i, ctrl in enumerate(photo_list.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
             area_pct = area_percentages[i]
-            ctrl.content.controls[1].value = f"Scale: {scale_pct}%\nArea: {area_pct:.2f}%"
-            ctrl.content.controls[1].color = scale_color
+            ctrl.controls[0].controls[3].value = f"Area: {area_pct:.2f}%"
+            ctrl.controls[0].controls[4].value = f"Scale: {scale_pct}%"
+            ctrl.controls[0].controls[4].color = scale_color
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         file_ext = "tiff" if cmyk_mode.value else "png"
@@ -481,13 +499,13 @@ def main(page: ft.Page):
                         padding_size,
                         ft.Text("Uploaded Photos:", size=14),
                         ft.Container(
-                            content=photo_grid,
+                            content=photo_list,
                             height=page.height * 0.4,
                             border=ft.border.all(1, ft.Colors.BLACK),
                             border_radius=5,
                         ),
                         ft.Row([
-                            add_button,  # Moved before trash_button
+                            add_button,
                             trash_button,
                             increase_button,
                             decrease_button,
@@ -522,20 +540,21 @@ def main(page: ft.Page):
     ))
 
     def on_resize(e):
-        runs_count, max_extent = get_grid_params()
-        photo_grid.runs_count = runs_count
-        photo_grid.max_extent = max_extent
-        for ctrl in photo_grid.controls:
-            ctrl.content.controls[0].width = max_extent - 40
-            ctrl.content.controls[0].height = max_extent - 40
-            scale_pct = int((scale_factors[photo_grid.controls.index(ctrl)] - 1.0) * 100)
+        photo_size = get_list_params()
+        for ctrl in photo_list.controls:
+            ctrl.controls[0].controls[1].width = photo_size
+            ctrl.controls[0].controls[1].height = photo_size
+            scale_pct = int((scale_factors[photo_list.controls.index(ctrl)] - 1.0) * 100)
             scale_color = (
                 ft.Colors.GREEN
-                if scale_factors[photo_grid.controls.index(ctrl)] >= 1.0
+                if scale_factors[photo_list.controls.index(ctrl)] >= 1.0
                 else ft.Colors.RED
             )
-            ctrl.content.controls[1].value = f"Scale: {scale_pct}%"
-            ctrl.content.controls[1].color = scale_color
+            ctrl.controls[0].controls[4].value = f"Scale: {scale_pct}%"
+            ctrl.controls[0].controls[4].color = scale_color
+            ctrl.controls[0].controls[
+                3
+            ].value = f"Area: {area_percentages[photo_list.controls.index(ctrl)]:.2f}%"
         collage_preview.width = page.width * 0.4 / a_series_ratio
         collage_preview.height = page.height * 0.4
         page.update()
