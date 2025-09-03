@@ -2,13 +2,15 @@
 name = "efficient-photo-collage-arranger"
 version = "0.1.0"
 description = "A Photo Collage maker Which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing."
-readme = "README.md"ls
+readme = "README.md"
 requires-python = ">=3.9"
 authors = [
     { name = "Hadi Fadakar Sani", email = "hadi_f@live.com" }
 ]
 dependencies = [
-  "flet==0.28.3"
+    "flet>=0.26.0",
+    "rectpack",
+    "Pillow"
 ]
 
 [tool.flet]

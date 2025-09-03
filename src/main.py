@@ -376,6 +376,27 @@ def main(page: ft.Page):
 
         return int(min_width), int(min_height)
 
+    # Function to find free spaces in the canvas
+    def find_free_spaces(canvas_width, canvas_height, rects, min_size=50):
+        free_rects = [(0, 0, canvas_width, canvas_height)]
+        for _, x, y, w, h, _ in rects:
+            new_free_rects = []
+            for fx, fy, fw, fh in free_rects:
+                if x + w <= fx or fx + fw <= x or y + h <= fy or fy + fh <= y:
+                    new_free_rects.append((fx, fy, fw, fh))
+
+                    continue
+                if fx < x:
+                    new_free_rects.append((fx, fy, x - fx, fh))
+                if fx + fw > x + w:
+                    new_free_rects.append((x + w, fy, fx + fw - (x + w), fh))
+                if fy < y:
+                    new_free_rects.append((fx, fy, fw, y - fy))
+                if fy + fh > y + h:
+                    new_free_rects.append((fx, y + h, fw, fy + fh - (y + h)))
+            free_rects = new_free_rects
+        return [(x, y, w, h) for x, y, w, h in free_rects if w >= min_size and h >= min_size]
+
     # Generate and save collage
     def generate_layout(save_only=False):
         if not images:
@@ -476,6 +497,42 @@ def main(page: ft.Page):
             padded_img.paste(img_resized, (padding, padding))
             canvas.paste(padded_img, (x, y))
 
+        # Add logo in free space
+        logo_status = ""
+        try:
+            logo_path = os.path.join("assets", "icon.png")
+            logo_img = Image.open(logo_path)
+            if cmyk_mode.value:
+                logo_img = logo_img.convert("CMYK")
+            free_rects = find_free_spaces(canvas_width, canvas_height, all_rects, min_size=50)
+            if free_rects:
+                # Find the largest free rectangle by area
+                largest_rect = max(free_rects, key=lambda r: r[2] * r[3], default=None)
+                if largest_rect:
+                    fx, fy, fw, fh = largest_rect
+                    # Scale logo to fit within the free rectangle, preserving aspect ratio
+                    logo_w, logo_h = logo_img.size
+                    scale = min(fw / logo_w, fh / logo_h, 1.0) * 0.9  # Use 90% of available space
+                    scaled_logo_w = int(logo_w * scale)
+                    scaled_logo_h = int(logo_h * scale)
+                    if scaled_logo_w >= 50 and scaled_logo_h >= 50:  # Minimum size threshold
+                        logo_resized = logo_img.resize(
+                            (scaled_logo_w, scaled_logo_h), Image.Resampling.LANCZOS
+                        )
+                        canvas.paste(
+                            logo_resized,
+                            (fx + (fw - scaled_logo_w) // 2, fy + (fh - scaled_logo_h) // 2),
+                        )
+                        logo_status = "Logo added to free space in collage."
+                    else:
+                        logo_status = "Free space too small to add logo."
+                else:
+                    logo_status = "No suitable free space to add logo."
+            else:
+                logo_status = "No free space available to add logo."
+        except Exception as ex:
+            logo_status = f"Error loading or adding logo: {str(ex)}"
+
         for i, ctrl in enumerate(photo_list.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
@@ -500,7 +557,11 @@ def main(page: ft.Page):
                 collage_preview.src = preview_path
                 collage_preview.visible = True
                 last_output_path[0] = output_path
-                status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%. Double-tap the preview to open in default viewer."
+                status.value = (
+                    f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. "
+                    f"Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%. "
+                    f"{logo_status} Double-tap the preview to open in default viewer."
+                )
                 page.update()
             return output_path, canvas_width, canvas_height
         except Exception as ex:
@@ -589,4 +650,4 @@ def main(page: ft.Page):
 
     page.on_resize = on_resize
 
-ft.app(target=main)
+ft.app(target=main, assets_dir="assets")
