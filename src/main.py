@@ -9,6 +9,7 @@ from rectpack import newPacker
 
 def main(page: ft.Page):
     page.title = "Photo Arranger for A-Series Printing with Rectpack"
+    
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.padding = 10
     page.update()
