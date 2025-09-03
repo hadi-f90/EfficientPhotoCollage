@@ -118,3 +118,7 @@ I want you to Add the ability to drag and drop photo files to preview grid, so t
 ==============
 ===================
 Didn't work either. forget about it. I, again, pasted the most recent working version without drag and drop changes. Now,  add select and deselect all, invert and clear current selection below preview grid with their appropriate icons along with other preview editing buttons. also, move add file button before trash button which is for removing photos from list
+
+==============
+Great!. Now I've got an idea for printing instead of printing function, I want to add double click/tap on final canvas to open it in external default.
+finally write a git commit note for this change.

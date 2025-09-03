@@ -1,5 +1,7 @@
 import math
 import os
+import platform
+import subprocess
 from datetime import datetime
 
 import flet as ft
@@ -9,7 +11,6 @@ from rectpack import newPacker
 
 def main(page: ft.Page):
     page.title = "Photo Arranger for A-Series Printing with Rectpack"
-    
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.padding = 10
     page.update()
@@ -19,6 +20,7 @@ def main(page: ft.Page):
     file_paths = []
     scale_factors = []  # Scaling factor for each image (1.0 = original size)
     area_percentages = []  # Store area percentage for each image after layout
+    last_output_path = [None]  # Store last generated collage path
 
     # Status text
     status = ft.Text("", size=14)
@@ -54,12 +56,36 @@ def main(page: ft.Page):
 
     # Image control for previewing the final collage
     a_series_ratio = math.sqrt(2)
+    def open_collage(e):
+        if last_output_path[0]:
+            try:
+                if platform.system() == "Windows":
+                    os.startfile(last_output_path[0])
+                else:
+                    opener = "open" if platform.system() == "Darwin" else "xdg-open"
+                    subprocess.run([opener, last_output_path[0]])
+                status.value = (
+                    f"Opened collage '{os.path.basename(last_output_path[0])}' in default viewer."
+                )
+            except Exception as ex:
+                status.value = f"Error opening collage: {str(ex)}"
+            page.update()
+        else:
+            status.value = "No collage generated yet."
+
     collage_preview = ft.Image(
         src="",
         width=page.width * 0.4 / a_series_ratio,
         height=page.height * 0.4,
         fit=ft.ImageFit.CONTAIN,
         visible=False,
+        border_radius=5,
+    )
+    collage_preview_container = ft.Container(
+        content=collage_preview, border=ft.border.all(1, ft.Colors.BLUE_500), border_radius=5
+    )
+    collage_preview_gesture = ft.GestureDetector(
+        content=collage_preview_container, on_double_tap=open_collage
     )
 
     # File picker handler
@@ -473,7 +499,8 @@ def main(page: ft.Page):
             if not save_only:
                 collage_preview.src = preview_path
                 collage_preview.visible = True
-                status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%. Open this file in an image viewer to print."
+                last_output_path[0] = output_path
+                status.value = f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%. Double-tap the preview to open in default viewer."
                 page.update()
             return output_path, canvas_width, canvas_height
         except Exception as ex:
@@ -527,8 +554,8 @@ def main(page: ft.Page):
                 ft.Column(
                     col={"xs": 12, "md": 6},
                     controls=[
-                        ft.Text("Collage Preview:", size=14),
-                        collage_preview,
+                        ft.Text("Collage Preview (Double-tap to open):", size=14),
+                        collage_preview_gesture,
                     ],
                     alignment=ft.MainAxisAlignment.START,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
