@@ -128,3 +128,6 @@ I've added my own logo under /assets/icon.png in my project folder structure (as
 ====
 Good, make the Icon more bigger. Also, add a note about my shop "Karrayan Office Equipment Store" next to  the logo.
 ==========
+Great! worked well. but it didn't put the logo and text within free unused area of canvas. Can you change the app to fit my logo and desired text i.e. in the largest remaining available of canvas.
+==============
+Well, in your latest change, the app did put logo and text within the canvas, however the photos shrank and the logo was still small with a vast area of free space around which is not what I wanted.

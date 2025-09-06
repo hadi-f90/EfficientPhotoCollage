@@ -377,7 +377,7 @@ def main(page: ft.Page):
         return int(min_width), int(min_height)
 
     # Function to find free spaces in the canvas
-    def find_free_spaces(canvas_width, canvas_height, rects, min_size=100):
+    def find_free_spaces(canvas_width, canvas_height, rects, min_size=50):
         free_rects = [(0, 0, canvas_width, canvas_height)]
         for _, x, y, w, h, _ in rects:
             new_free_rects = []
@@ -395,6 +395,7 @@ def main(page: ft.Page):
                 if fy + fh > y + h:
                     new_free_rects.append((fx, y + h, fw, fy + fh - (y + h)))
             free_rects = new_free_rects
+        # Filter rectangles that are too small
         return [(x, y, w, h) for x, y, w, h in free_rects if w >= min_size and h >= min_size]
 
     # Generate and save collage
@@ -418,6 +419,7 @@ def main(page: ft.Page):
         )
         padding = max(0, padding)
 
+        # Try portrait and landscape orientations
         portrait_w, portrait_h = find_min_canvas(orig_sizes, num_images, a_series_ratio)
         portrait_area = portrait_w * portrait_h if portrait_w != float('inf') else float('inf')
         landscape_w, landscape_h = find_min_canvas(orig_sizes, num_images, 1 / a_series_ratio)
@@ -437,6 +439,7 @@ def main(page: ft.Page):
             page.update()
             return None, None, None
 
+        # Pack photos and check for sufficient free space
         packer = newPacker(rotation=True)
         for i, (w, h) in enumerate(orig_sizes):
             scaled_w = max(1, int(w * scale_factors[i]))
@@ -446,9 +449,23 @@ def main(page: ft.Page):
         packer.pack()
 
         if len(packer.rect_list()) != num_images:
-            status.value = "Packing failed unexpectedly."
-            page.update()
-            return None, None, None
+            # Increase canvas size incrementally until photos fit and free space is sufficient
+            scale_factor = 1.05
+            while len(packer.rect_list()) != num_images:
+                canvas_width = int(canvas_width * scale_factor)
+                canvas_height = int(canvas_height * scale_factor)
+                packer = newPacker(rotation=True)
+                for i, (w, h) in enumerate(orig_sizes):
+                    scaled_w = max(1, int(w * scale_factors[i]))
+                    scaled_h = max(1, int(h * scale_factors[i]))
+                    packer.add_rect(scaled_w + 2 * padding, scaled_h + 2 * padding, rid=i)
+                packer.add_bin(canvas_width, canvas_height)
+                packer.pack()
+                scale_factor += 0.05
+                if scale_factor > 2.0:
+                    status.value = "Could not fit all images even with larger canvas."
+                    page.update()
+                    return None, None, None
 
         canvas_area = canvas_width * canvas_height
         total_image_area = 0
@@ -497,54 +514,70 @@ def main(page: ft.Page):
             padded_img.paste(img_resized, (padding, padding))
             canvas.paste(padded_img, (x, y))
 
-        # Add logo and shop note in free space
+        # Add logo and shop note in the largest free space
         logo_status = ""
         try:
             logo_path = os.path.join("assets", "icon.png")
             logo_img = Image.open(logo_path)
             if cmyk_mode.value:
                 logo_img = logo_img.convert("CMYK")
-            free_rects = find_free_spaces(canvas_width, canvas_height, all_rects, min_size=100)
+            free_rects = find_free_spaces(canvas_width, canvas_height, all_rects, min_size=50)
             if free_rects:
-                # Find the largest free rectangle by area
+                # Select the largest free rectangle by area
                 largest_rect = max(free_rects, key=lambda r: r[2] * r[3], default=None)
                 if largest_rect:
                     fx, fy, fw, fh = largest_rect
-                    # Scale logo to fit within 95% of the free rectangle, preserving aspect ratio
+                    # Maximize logo size within free rectangle
                     logo_w, logo_h = logo_img.size
-                    scale = min(fw / logo_w, fh / logo_h, 1.0) * 0.95  # Use 95% of available space
-                    scaled_logo_w = int(logo_w * scale)
-                    scaled_logo_h = int(logo_h * scale)
-                    if scaled_logo_w >= 100 and scaled_logo_h >= 100:  # Minimum size threshold
-                        logo_resized = logo_img.resize(
-                            (scaled_logo_w, scaled_logo_h), Image.Resampling.LANCZOS
-                        )
-                        # Calculate logo position (left-aligned in free rectangle)
-                        logo_x = fx
-                        logo_y = fy + (fh - scaled_logo_h) // 2
-                        canvas.paste(logo_resized, (logo_x, logo_y))
-                        # Add shop note to the right of the logo
-                        draw = ImageDraw.Draw(canvas)
-                        shop_text = "Karrayan Office Equipment Store"
+                    draw = ImageDraw.Draw(canvas)
+                    shop_text = "Karrayan Office Equipment Store"
+                    font_size = 24
+                    text_fits = False
+                    logo_scale = 0.98  # Start with 98% of free space to avoid edge issues
+
+                    while font_size >= 12 and not text_fits:
                         try:
-                            font = ImageFont.truetype("arial.ttf", size=24)
+                            font = ImageFont.truetype("arial.ttf", size=font_size)
                         except:
                             font = ImageFont.load_default()
                         text_bbox = draw.textbbox((0, 0), shop_text, font=font)
                         text_w = text_bbox[2] - text_bbox[0]
                         text_h = text_bbox[3] - text_bbox[1]
-                        # Check if text fits within the remaining free rectangle space
-                        if logo_x + scaled_logo_w + text_w + 10 <= fx + fw and text_h <= fh:
-                            text_x = (
-                                logo_x + scaled_logo_w + 10
-                            )  # 10-pixel gap between logo and text
+
+                        # Scale logo to fit within free rectangle
+                        scale = min(fw / logo_w, (fh - text_h - 10) / logo_h, 1.0) * logo_scale
+                        scaled_logo_w = int(logo_w * scale)
+                        scaled_logo_h = int(logo_h * scale)
+
+                        # Check if logo and text fit side by side
+                        total_width = scaled_logo_w + 10 + text_w
+                        if total_width <= fw and max(scaled_logo_h, text_h) <= fh:
+                            text_fits = True
+                        else:
+                            font_size -= 2  # Reduce font size to fit
+
+                    if scaled_logo_w > 0 and scaled_logo_h > 0:
+                        logo_resized = logo_img.resize(
+                            (scaled_logo_w, scaled_logo_h), Image.Resampling.LANCZOS
+                        )
+                        # Center logo and text in the free rectangle
+                        total_content_width = (
+                            scaled_logo_w + 10 + text_w if text_fits else scaled_logo_w
+                        )
+                        logo_x = fx + (fw - total_content_width) // 2
+                        logo_y = fy + (fh - scaled_logo_h) // 2
+                        canvas.paste(logo_resized, (logo_x, logo_y))
+
+                        if text_fits:
+                            text_x = logo_x + scaled_logo_w + 10
                             text_y = fy + (fh - text_h) // 2
                             text_color = (0, 0, 0) if mode == "RGB" else (0, 0, 0, 255)
                             draw.text((text_x, text_y), shop_text, font=font, fill=text_color)
-                            logo_status = "Logo and shop note added to free space in collage."
+                            logo_status = "Logo and shop note maximized in largest free space."
                         else:
-                            logo_status = "Logo added, but shop note does not fit in free space."
-                            True
+                            logo_status = (
+                                "Logo maximized in largest free space, but shop note does not fit."
+                            )
                     else:
                         logo_status = "Free space too small to add logo and shop note."
                 else:
