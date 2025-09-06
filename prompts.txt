@@ -124,3 +124,7 @@ Great!. Now I've got an idea for printing instead of printing function, I want t
 finally write a git commit note for this change.
 =================
 I've added my own logo under /assets/icon.png in my project folder structure (as of flet project structure is). I want this logo be the app icon. Also, I want the app add a small form of its logo in a free space left after other photos packed successfully.
+
+====
+Good, make the Icon more bigger. Also, add a note about my shop "Karrayan Office Equipment Store" next to  the logo.
+==========

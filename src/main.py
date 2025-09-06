@@ -5,7 +5,7 @@ import subprocess
 from datetime import datetime
 
 import flet as ft
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from rectpack import newPacker
 
 
@@ -377,7 +377,7 @@ def main(page: ft.Page):
         return int(min_width), int(min_height)
 
     # Function to find free spaces in the canvas
-    def find_free_spaces(canvas_width, canvas_height, rects, min_size=50):
+    def find_free_spaces(canvas_width, canvas_height, rects, min_size=100):
         free_rects = [(0, 0, canvas_width, canvas_height)]
         for _, x, y, w, h, _ in rects:
             new_free_rects = []
@@ -497,41 +497,62 @@ def main(page: ft.Page):
             padded_img.paste(img_resized, (padding, padding))
             canvas.paste(padded_img, (x, y))
 
-        # Add logo in free space
+        # Add logo and shop note in free space
         logo_status = ""
         try:
             logo_path = os.path.join("assets", "icon.png")
             logo_img = Image.open(logo_path)
             if cmyk_mode.value:
                 logo_img = logo_img.convert("CMYK")
-            free_rects = find_free_spaces(canvas_width, canvas_height, all_rects, min_size=50)
+            free_rects = find_free_spaces(canvas_width, canvas_height, all_rects, min_size=100)
             if free_rects:
                 # Find the largest free rectangle by area
                 largest_rect = max(free_rects, key=lambda r: r[2] * r[3], default=None)
                 if largest_rect:
                     fx, fy, fw, fh = largest_rect
-                    # Scale logo to fit within the free rectangle, preserving aspect ratio
+                    # Scale logo to fit within 95% of the free rectangle, preserving aspect ratio
                     logo_w, logo_h = logo_img.size
-                    scale = min(fw / logo_w, fh / logo_h, 1.0) * 0.9  # Use 90% of available space
+                    scale = min(fw / logo_w, fh / logo_h, 1.0) * 0.95  # Use 95% of available space
                     scaled_logo_w = int(logo_w * scale)
                     scaled_logo_h = int(logo_h * scale)
-                    if scaled_logo_w >= 50 and scaled_logo_h >= 50:  # Minimum size threshold
+                    if scaled_logo_w >= 100 and scaled_logo_h >= 100:  # Minimum size threshold
                         logo_resized = logo_img.resize(
                             (scaled_logo_w, scaled_logo_h), Image.Resampling.LANCZOS
                         )
-                        canvas.paste(
-                            logo_resized,
-                            (fx + (fw - scaled_logo_w) // 2, fy + (fh - scaled_logo_h) // 2),
-                        )
-                        logo_status = "Logo added to free space in collage."
+                        # Calculate logo position (left-aligned in free rectangle)
+                        logo_x = fx
+                        logo_y = fy + (fh - scaled_logo_h) // 2
+                        canvas.paste(logo_resized, (logo_x, logo_y))
+                        # Add shop note to the right of the logo
+                        draw = ImageDraw.Draw(canvas)
+                        shop_text = "Karrayan Office Equipment Store"
+                        try:
+                            font = ImageFont.truetype("arial.ttf", size=24)
+                        except:
+                            font = ImageFont.load_default()
+                        text_bbox = draw.textbbox((0, 0), shop_text, font=font)
+                        text_w = text_bbox[2] - text_bbox[0]
+                        text_h = text_bbox[3] - text_bbox[1]
+                        # Check if text fits within the remaining free rectangle space
+                        if logo_x + scaled_logo_w + text_w + 10 <= fx + fw and text_h <= fh:
+                            text_x = (
+                                logo_x + scaled_logo_w + 10
+                            )  # 10-pixel gap between logo and text
+                            text_y = fy + (fh - text_h) // 2
+                            text_color = (0, 0, 0) if mode == "RGB" else (0, 0, 0, 255)
+                            draw.text((text_x, text_y), shop_text, font=font, fill=text_color)
+                            logo_status = "Logo and shop note added to free space in collage."
+                        else:
+                            logo_status = "Logo added, but shop note does not fit in free space."
+                            True
                     else:
-                        logo_status = "Free space too small to add logo."
+                        logo_status = "Free space too small to add logo and shop note."
                 else:
-                    logo_status = "No suitable free space to add logo."
+                    logo_status = "No suitable free space to add logo and shop note."
             else:
-                logo_status = "No free space available to add logo."
+                logo_status = "No free space available to add logo and shop note."
         except Exception as ex:
-            logo_status = f"Error loading or adding logo: {str(ex)}"
+            logo_status = f"Error loading or adding logo/shop note: {str(ex)}"
 
         for i, ctrl in enumerate(photo_list.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
