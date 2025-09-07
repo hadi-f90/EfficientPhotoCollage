@@ -131,3 +131,8 @@ Good, make the Icon more bigger. Also, add a note about my shop "Karrayan Office
 Great! worked well. but it didn't put the logo and text within free unused area of canvas. Can you change the app to fit my logo and desired text i.e. in the largest remaining available of canvas.
 ==============
 Well, in your latest change, the app did put logo and text within the canvas, however the photos shrank and the logo was still small with a vast area of free space around which is not what I wanted.
+==============
+Now, I want you to add a new feature. I want the app manage to distribute photos in just one canvas or than one canvas which in our case be pages and in rectangle packing will be bins, I think.
+Thanks, It worked. but not as I expected. It crams photos on one side of canvases, and puts the logo and its text in the middle of the rest of area.
+The think that I expected was that, the program arrange photos in multiple canvas so that they occupy as much area as possible with the ratio of A paper series.
+==================
