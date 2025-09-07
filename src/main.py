@@ -6,7 +6,7 @@ from datetime import datetime
 
 import flet as ft
 from PIL import Image, ImageDraw, ImageFont
-from rectpack import SORT_AREA, newPacker
+from rectpack import newPacker
 
 
 def main(page: ft.Page):
@@ -20,40 +20,21 @@ def main(page: ft.Page):
     file_paths = []
     scale_factors = []  # Scaling factor for each image (1.0 = original size)
     area_percentages = []  # Store area percentage for each image after layout
-    last_output_paths = []  # Store paths of all generated canvases
+    last_output_path = [None]  # Store last generated collage path
 
     # Status text
     status = ft.Text("", size=14)
 
     # Checkbox for CMYK mode
-    cmyk_mode = ft.Checkbox(label="Use CMYK color profile for printing (saves as TIFF)", value=False)
+    cmyk_mode = ft.Checkbox(
+        label="Use CMYK color profile for printing (saves as TIFF)", value=False
+    )
 
     # Checkbox and input for padding
-    padding_enabled = ft.Checkbox(label="Add padding border around photos for easier cutting", value=False)
-    padding_size = ft.TextField(label="Padding size (pixels)", value="10", width=150, disabled=True)
-
-    # Input for number of canvases
-    def validate_num_canvases(e):
-        try:
-            num = int(num_canvases_input.value)
-            if num < 1:
-                num_canvases_input.value = "1"
-                status.value = "Number of canvases must be at least 1."
-            elif num > len(images):
-                num_canvases_input.value = str(len(images))
-                status.value = f"Number of canvases cannot exceed number of images ({len(images)})."
-        except ValueError:
-            num_canvases_input.value = "1"
-            status.value = "Please enter a valid number of canvases."
-        page.update()
-
-    num_canvases_input = ft.TextField(
-        label="Number of canvases (pages)",
-        value="1",
-        width=150,
-        keyboard_type=ft.KeyboardType.NUMBER,
-        on_change=validate_num_canvases
+    padding_enabled = ft.Checkbox(
+        label="Add padding border around photos for easier cutting", value=False
     )
+    padding_size = ft.TextField(label="Padding size (pixels)", value="10", width=150, disabled=True)
 
     def on_padding_toggle(e):
         padding_size.disabled = not padding_enabled.value
@@ -71,110 +52,40 @@ def main(page: ft.Page):
         return 150
 
     photo_size = get_list_params()
-    photo_list = ft.ListView(
-        expand=True,
-        spacing=10,
-        padding=15,
-        auto_scroll=True
-    )
+    photo_list = ft.ListView(expand=True, spacing=10, padding=15, auto_scroll=True)
 
-    # Carousel for previewing all canvases
+    # Image control for previewing the final collage
     a_series_ratio = math.sqrt(2)
-    current_preview_index = [0]  # Track current canvas index
-    canvas_previews = ft.ListView(
-        spacing=10,
-        padding=10,
-        height=page.height * 0.4,
-        auto_scroll=False,
-        visible=False
-    )
-    canvas_index_text = ft.Text("Canvas 1/0", size=12)
-
-    def open_collages(e):
-        if last_output_paths:
-            for output_path in last_output_paths:
-                try:
-                    if platform.system() == "Windows":
-                        os.startfile(output_path)
-                    else:
-                        opener = "open" if platform.system() == "Darwin" else "xdg-open"
-                        subprocess.run([opener, output_path])
-                except Exception as ex:
-                    status.value = f"Error opening canvas '{os.path.basename(output_path)}': {str(ex)}"
-                    page.update()
-                    return
-            status.value = f"Opened {len(last_output_paths)} canvas(es) in default viewer: {', '.join([os.path.basename(p) for p in last_output_paths])}."
+    def open_collage(e):
+        if last_output_path[0]:
+            try:
+                if platform.system() == "Windows":
+                    os.startfile(last_output_path[0])
+                else:
+                    opener = "open" if platform.system() == "Darwin" else "xdg-open"
+                    subprocess.run([opener, last_output_path[0]])
+                status.value = (
+                    f"Opened collage '{os.path.basename(last_output_path[0])}' in default viewer."
+                )
+            except Exception as ex:
+                status.value = f"Error opening collage: {str(ex)}"
             page.update()
         else:
-            status.value = "No canvases generated yet."
+            status.value = "No collage generated yet."
 
-    def show_prev_canvas(e):
-        if current_preview_index[0] > 0:
-            current_preview_index[0] -= 1
-            canvas_previews.controls.clear()
-            canvas_previews.controls.append(
-                ft.GestureDetector(
-                    content=ft.Container(
-                        content=ft.Image(
-                            src=last_output_paths[current_preview_index[0]] if last_output_paths else "",
-                            width=page.width * 0.4 / a_series_ratio,
-                            height=page.height * 0.4,
-                            fit=ft.ImageFit.CONTAIN,
-                            border_radius=5
-                        ),
-                        border=ft.border.all(1, ft.Colors.BLUE_500),
-                        border_radius=5
-                    ),
-                    on_double_tap=open_collages
-                )
-            )
-            canvas_index_text.value = f"Canvas {current_preview_index[0] + 1}/{len(last_output_paths)}"
-            prev_button.disabled = current_preview_index[0] == 0
-            next_button.disabled = current_preview_index[0] == len(last_output_paths) - 1
-            status.value = (
-                f"Generated {len(last_output_paths)} canvas(es) saved as {', '.join([f'\'{os.path.basename(p)}\'' for p in last_output_paths])}. "
-                f"Showing canvas {current_preview_index[0] + 1} of {len(last_output_paths)}. Double-tap to open all canvases."
-            )
-            page.update()
-
-    def show_next_canvas(e):
-        if current_preview_index[0] < len(last_output_paths) - 1:
-            current_preview_index[0] += 1
-            canvas_previews.controls.clear()
-            canvas_previews.controls.append(
-                ft.GestureDetector(
-                    content=ft.Container(
-                        content=ft.Image(
-                            src=last_output_paths[current_preview_index[0]] if last_output_paths else "",
-                            width=page.width * 0.4 / a_series_ratio,
-                            height=page.height * 0.4,
-                            fit=ft.ImageFit.CONTAIN,
-                            border_radius=5
-                        ),
-                        border=ft.border.all(1, ft.Colors.BLUE_500),
-                        border_radius=5
-                    ),
-                    on_double_tap=open_collages
-                )
-            )
-            canvas_index_text.value = f"Canvas {current_preview_index[0] + 1}/{len(last_output_paths)}"
-            prev_button.disabled = current_preview_index[0] == 0
-            next_button.disabled = current_preview_index[0] == len(last_output_paths) - 1
-            status.value = (
-                f"Generated {len(last_output_paths)} canvas(es) saved as {', '.join([f'\'{os.path.basename(p)}\'' for p in last_output_paths])}. "
-                f"Showing canvas {current_preview_index[0] + 1} of {len(last_output_paths)}. Double-tap to open all canvases."
-            )
-            page.update()
-
-    prev_button = ft.IconButton(
-        icon=ft.Icons.ARROW_LEFT,
-        on_click=show_prev_canvas,
-        disabled=True
+    collage_preview = ft.Image(
+        src="",
+        width=page.width * 0.4 / a_series_ratio,
+        height=page.height * 0.4,
+        fit=ft.ImageFit.CONTAIN,
+        visible=False,
+        border_radius=5,
     )
-    next_button = ft.IconButton(
-        icon=ft.Icons.ARROW_RIGHT,
-        on_click=show_next_canvas,
-        disabled=True
+    collage_preview_container = ft.Container(
+        content=collage_preview, border=ft.border.all(1, ft.Colors.BLUE_500), border_radius=5
+    )
+    collage_preview_gesture = ft.GestureDetector(
+        content=collage_preview_container, on_double_tap=open_collage
     )
 
     # File picker handler
@@ -214,32 +125,47 @@ def main(page: ft.Page):
                                     width=photo_size,
                                     height=photo_size,
                                     fit=ft.ImageFit.CONTAIN,
-                                    border_radius=5
+                                    border_radius=5,
                                 ),
-                                ft.Text(file_name, size=12, width=150, text_align=ft.TextAlign.LEFT),
-                                ft.Text(dimensions, size=12, width=100, text_align=ft.TextAlign.CENTER),
-                                ft.Text("Area: 0.00%", size=12, width=100, text_align=ft.TextAlign.CENTER),
+                                ft.Text(
+                                    file_name,
+                                    size=12,
+                                    width=150,
+                                    text_align=ft.TextAlign.LEFT,
+                                ),
+                                ft.Text(
+                                    dimensions,
+                                    size=12,
+                                    width=100,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
+                                ft.Text(
+                                    "Area: 0.00%",
+                                    size=12,
+                                    width=100,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
                                 ft.Text(
                                     value=f"Scale: {scale_pct}%",
                                     size=12,
                                     color=scale_color,
                                     width=100,
-                                    text_align=ft.TextAlign.CENTER
-                                ),
-                            ],
-                            alignment=ft.MainAxisAlignment.START,
-                            spacing=10),
-                            ft.Divider()
-                        ])
-                    )
+                                    text_align=ft.TextAlign.CENTER,
+                                ),],
+                                alignment=ft.MainAxisAlignment.START,
+                                spacing=10,
+                            ),
+                            ft.Divider(),
+                    ]))
                     added_count += 1
                 except Exception as ex:
                     status.value = f"Error loading {f.name}: {str(ex)}"
                     page.update()
                     return
-            status.value = f"{'Loaded' if not images else 'Added'} {added_count} new images successfully."
-            canvas_previews.visible = False
-            canvas_index_text.value = "Canvas 1/0"
+            status.value = (
+                f"{'Loaded' if not images else 'Added'} {added_count} new images successfully."
+            )
+            collage_preview.visible = False
             page.update()
 
     file_picker = ft.FilePicker(on_result=handle_upload)
@@ -248,8 +174,9 @@ def main(page: ft.Page):
     # Add file button
     add_button = ft.IconButton(
         icon=ft.Icons.ADD,
-        on_click=lambda _: file_picker.pick_files(allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"])
-    )
+        on_click=lambda _: file_picker.pick_files(
+            allow_multiple=True, allowed_extensions=["jpg", "jpeg", "png"]
+    ),)
 
     # Delete selected button
     def delete_selected(e):
@@ -265,8 +192,7 @@ def main(page: ft.Page):
             del area_percentages[i]
             del photo_list.controls[i]
         status.value = f"Deleted {len(to_delete)} images."
-        canvas_previews.visible = False
-        canvas_index_text.value = "Canvas 1/0"
+        collage_preview.visible = False
         for i, ctrl in enumerate(photo_list.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
@@ -294,8 +220,7 @@ def main(page: ft.Page):
             status.value = "No photos selected to increase size."
         else:
             status.value = f"Increased size of {selected_count} selected photos by 10%."
-        canvas_previews.visible = False
-        canvas_index_text.value = "Canvas 1/0"
+        collage_preview.visible = False
         for i, ctrl in enumerate(photo_list.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
@@ -304,9 +229,7 @@ def main(page: ft.Page):
         page.update()
 
     increase_button = ft.IconButton(
-        icon=ft.Icons.ZOOM_IN,
-        icon_color=ft.Colors.GREEN,
-        on_click=increase_size
+        icon=ft.Icons.ZOOM_IN, icon_color=ft.Colors.GREEN, on_click=increase_size
     )
 
     # Decrease size button
@@ -327,8 +250,7 @@ def main(page: ft.Page):
             status.value = "No photos selected to decrease size."
         else:
             status.value = f"Decreased size of {selected_count} selected photos by 10%."
-        canvas_previews.visible = False
-        canvas_index_text.value = "Canvas 1/0"
+        collage_preview.visible = False
         for i, ctrl in enumerate(photo_list.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
@@ -337,9 +259,7 @@ def main(page: ft.Page):
         page.update()
 
     decrease_button = ft.IconButton(
-        icon=ft.Icons.ZOOM_OUT,
-        icon_color=ft.Colors.RED,
-        on_click=decrease_size
+        icon=ft.Icons.ZOOM_OUT, icon_color=ft.Colors.RED, on_click=decrease_size
     )
 
     # Select all button
@@ -350,13 +270,15 @@ def main(page: ft.Page):
             if not checkbox.value:
                 checkbox.value = True
                 selected_count += 1
-        status.value = f"Selected {selected_count} images." if selected_count > 0 else "All images already selected."
+        status.value = (
+            f"Selected {selected_count} images."
+            if selected_count > 0
+            else "All images already selected."
+        )
         page.update()
 
     select_all_button = ft.IconButton(
-        icon=ft.Icons.CHECK_BOX,
-        icon_color=ft.Colors.BLUE,
-        on_click=select_all
+        icon=ft.Icons.CHECK_BOX, icon_color=ft.Colors.BLUE, on_click=select_all
     )
 
     # Deselect all button
@@ -367,13 +289,15 @@ def main(page: ft.Page):
             if checkbox.value:
                 checkbox.value = False
                 deselected_count += 1
-        status.value = f"Deselected {deselected_count} images." if deselected_count > 0 else "No images were selected."
+        status.value = (
+            f"Deselected {deselected_count} images."
+            if deselected_count > 0
+            else "No images were selected."
+        )
         page.update()
 
     deselect_all_button = ft.IconButton(
-        icon=ft.Icons.CHECK_BOX_OUTLINE_BLANK,
-        icon_color=ft.Colors.BLUE,
-        on_click=deselect_all
+        icon=ft.Icons.CHECK_BOX_OUTLINE_BLANK, icon_color=ft.Colors.BLUE, on_click=deselect_all
     )
 
     # Invert selection button
@@ -383,13 +307,15 @@ def main(page: ft.Page):
             checkbox = ctrl.controls[0].controls[0]
             checkbox.value = not checkbox.value
             toggled_count += 1
-        status.value = f"Inverted selection for {toggled_count} images." if toggled_count > 0 else "No images to invert."
+        status.value = (
+            f"Inverted selection for {toggled_count} images."
+            if toggled_count > 0
+            else "No images to invert."
+        )
         page.update()
 
     invert_selection_button = ft.IconButton(
-        icon=ft.Icons.SWAP_HORIZ,
-        icon_color=ft.Colors.BLUE,
-        on_click=invert_selection
+        icon=ft.Icons.SWAP_HORIZ, icon_color=ft.Colors.BLUE, on_click=invert_selection
     )
 
     # Clear current selection button
@@ -401,26 +327,31 @@ def main(page: ft.Page):
             area_percentages.clear()
             photo_list.controls.clear()
             status.value = "Cleared all images."
-            canvas_previews.visible = False
-            canvas_index_text.value = "Canvas 1/0"
+            collage_preview.visible = False
             page.update()
         else:
             status.value = "No images to clear."
 
     clear_selection_button = ft.IconButton(
-        icon=ft.Icons.CLEAR_ALL,
-        icon_color=ft.Colors.RED,
-        on_click=clear_selection
+        icon=ft.Icons.CLEAR_ALL, icon_color=ft.Colors.RED, on_click=clear_selection
     )
 
-    # Function to find minimal canvas for a given ratio and subset of images
-    def find_min_canvas(orig_sizes, scale_factors_subset, ratio):
-        padding = int(padding_size.value) if padding_enabled.value and padding_size.value.isdigit() else 0
+    # Function to find minimal canvas for a given ratio (height / width)
+    def find_min_canvas(orig_sizes, num_images, ratio):
+        padding = (
+            int(padding_size.value) if padding_enabled.value and padding_size.value.isdigit() else 0
+        )
         padding = max(0, padding)
-        min_side_req = max(min(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors_subset)) if orig_sizes else 1
-        max_side_req = max(max(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors_subset)) if orig_sizes else 1
+        min_side_req = max(
+            min(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors)
+        )
+        max_side_req = max(
+            max(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors)
+        )
         low = max(min_side_req, math.ceil(max_side_req / ratio))
-        high = sum(max(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors_subset)) * 2 if orig_sizes else 1000
+        high = (
+            sum(max(w * s, h * s) + 2 * padding for (w, h), s in zip(orig_sizes, scale_factors)) * 2
+        )
 
         min_width = float('inf')
         min_height = float('inf')
@@ -429,14 +360,14 @@ def main(page: ft.Page):
             mid = (low + high) // 2
             cw = mid
             ch = int(mid * ratio)
-            packer = newPacker(rotation=True, sort_algo=SORT_AREA)
+            packer = newPacker(rotation=True)
             for i, (w, h) in enumerate(orig_sizes):
-                scaled_w = max(1, int(w * scale_factors_subset[i]))
-                scaled_h = max(1, int(h * scale_factors_subset[i]))
+                scaled_w = max(1, int(w * scale_factors[i]))
+                scaled_h = max(1, int(h * scale_factors[i]))
                 packer.add_rect(scaled_w + 2 * padding, scaled_h + 2 * padding, rid=i)
             packer.add_bin(cw, ch)
             packer.pack()
-            if len(packer.rect_list()) == len(orig_sizes):
+            if len(packer.rect_list()) == num_images:
                 high = mid
                 min_width = cw
                 min_height = ch
@@ -464,9 +395,10 @@ def main(page: ft.Page):
                 if fy + fh > y + h:
                     new_free_rects.append((fx, y + h, fw, fy + fh - (y + h)))
             free_rects = new_free_rects
+        # Filter rectangles that are too small
         return [(x, y, w, h) for x, y, w, h in free_rects if w >= min_size and h >= min_size]
 
-    # Generate and save collage(s)
+    # Generate and save collage
     def generate_layout(save_only=False):
         if not images:
             status.value = "No images loaded. Please upload photos first."
@@ -482,229 +414,179 @@ def main(page: ft.Page):
             page.update()
             return None, None, None
 
-        # Validate number of canvases
-        try:
-            num_canvases = int(num_canvases_input.value)
-            if num_canvases < 1:
-                num_canvases = 1
-                num_canvases_input.value = "1"
-                status.value = "Number of canvases must be at least 1."
-                page.update()
-            elif num_canvases > num_images:
-                num_canvases = num_images
-                num_canvases_input.value = str(num_images)
-                status.value = f"Number of canvases cannot exceed number of images ({num_images})."
-                page.update()
-        except ValueError:
-            num_canvases = 1
-            num_canvases_input.value = "1"
-            status.value = "Invalid number of canvases; defaulting to 1."
-            page.update()
-
-        padding = int(padding_size.value) if padding_enabled.value and padding_size.value.isdigit() else 0
+        padding = (
+            int(padding_size.value) if padding_enabled.value and padding_size.value.isdigit() else 0
+        )
         padding = max(0, padding)
 
-        # Initialize attempt and scale_factor
-        attempt = 0
-        scale_factor = 1.5  # Start with larger canvas to spread photos
-
-        # Determine optimal canvas size for all images (used as base for all canvases)
-        portrait_w, portrait_h = find_min_canvas(orig_sizes, scale_factors, a_series_ratio)
+        # Try portrait and landscape orientations
+        portrait_w, portrait_h = find_min_canvas(orig_sizes, num_images, a_series_ratio)
         portrait_area = portrait_w * portrait_h if portrait_w != float('inf') else float('inf')
-        landscape_w, landscape_h = find_min_canvas(orig_sizes, scale_factors, 1 / a_series_ratio)
+        landscape_w, landscape_h = find_min_canvas(orig_sizes, num_images, 1 / a_series_ratio)
         landscape_area = landscape_w * landscape_h if landscape_w != float('inf') else float('inf')
 
-        orientation = "portrait" if portrait_area <= landscape_area else "landscape"
-        base_canvas_width = portrait_w if orientation == "portrait" else landscape_w
-        base_canvas_height = portrait_h if orientation == "portrait" else landscape_h
+        if portrait_area <= landscape_area:
+            canvas_width = portrait_w
+            canvas_height = portrait_h
+            orientation = "portrait"
+        else:
+            canvas_width = landscape_w
+            canvas_height = landscape_h
+            orientation = "landscape"
 
-        # Scale up canvas size to encourage spreading photos
-        base_canvas_width = int(base_canvas_width * scale_factor)
-        base_canvas_height = int(base_canvas_height * scale_factor)
-
-        # Distribute images across the specified number of canvases
-        images_per_canvas = max(1, num_images // num_canvases)
-        remainder = num_images % num_canvases
-        image_splits = []
-        start_idx = 0
-        for i in range(num_canvases):
-            num = images_per_canvas + (1 if i < remainder else 0)
-            if num > 0:  # Only include non-empty splits
-                image_splits.append((start_idx, start_idx + num))
-                start_idx += num
-
-        canvases = []
-        canvas_sizes = []
-        for split_idx, (start, end) in enumerate(image_splits):
-            # Subset of images for this canvas
-            subset_sizes = orig_sizes[start:end]
-            subset_scale_factors = scale_factors[start:end]
-
-            # Initialize packer for this subset
-            packer = newPacker(rotation=True, sort_algo=SORT_AREA)
-            for i, (w, h) in enumerate(subset_sizes):
-                scaled_w = max(1, int(w * subset_scale_factors[i]))
-                scaled_h = max(1, int(h * subset_scale_factors[i]))
-                packer.add_rect(scaled_w + 2 * padding, scaled_h + 2 * padding, rid=start + i)
-
-            # Add one bin for this canvas
-            packer.add_bin(base_canvas_width, base_canvas_height)
-            packer.pack()
-
-            # If packing failed, increase canvas size
-            if len(packer.rect_list()) != (end - start):
-                local_scale_factor = scale_factor
-                max_attempts = 10
-                attempt = 0
-                while len(packer.rect_list()) != (end - start) and attempt < max_attempts:
-                    packer = newPacker(rotation=True, sort_algo=SORT_AREA)
-                    for i, (w, h) in enumerate(subset_sizes):
-                        scaled_w = max(1, int(w * subset_scale_factors[i]))
-                        scaled_h = max(1, int(h * subset_scale_factors[i]))
-                        packer.add_rect(scaled_w + 2 * padding, scaled_h + 2 * padding, rid=start + i)
-                    packer.add_bin(int(base_canvas_width * local_scale_factor), int(base_canvas_height * local_scale_factor))
-                    packer.pack()
-                    attempt += 1
-                    local_scale_factor += 0.05
-
-                if len(packer.rect_list()) != (end - start):
-                    status.value = f"Could not fit {end - start} images on canvas {split_idx + 1}."
-                    page.update()
-                    return None, None, None
-
-            # Store rectangles for this canvas
-            canvas_width = base_canvas_width if attempt == 0 else int(base_canvas_width * local_scale_factor)
-            canvas_height = base_canvas_height if attempt == 0 else int(base_canvas_height * local_scale_factor)
-            canvases.append((canvas_width, canvas_height, packer.rect_list()))
-            canvas_sizes.append((canvas_width, canvas_height))
-
-        if not canvases:
-            status.value = "No canvases generated."
+        if canvas_width == float('inf'):
+            status.value = "Could not fit all images."
             page.update()
             return None, None, None
 
-        # Create and save canvases
-        mode = "CMYK" if cmyk_mode.value else "RGB"
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_paths = []
-        preview_paths = []
-        total_unused_pct = 0
-        total_canvas_area = 0
+        # Pack photos and check for sufficient free space
+        packer = newPacker(rotation=True)
+        for i, (w, h) in enumerate(orig_sizes):
+            scaled_w = max(1, int(w * scale_factors[i]))
+            scaled_h = max(1, int(h * scale_factors[i]))
+            packer.add_rect(scaled_w + 2 * padding, scaled_h + 2 * padding, rid=i)
+        packer.add_bin(canvas_width, canvas_height)
+        packer.pack()
+
+        if len(packer.rect_list()) != num_images:
+            # Increase canvas size incrementally until photos fit and free space is sufficient
+            scale_factor = 1.05
+            while len(packer.rect_list()) != num_images:
+                canvas_width = int(canvas_width * scale_factor)
+                canvas_height = int(canvas_height * scale_factor)
+                packer = newPacker(rotation=True)
+                for i, (w, h) in enumerate(orig_sizes):
+                    scaled_w = max(1, int(w * scale_factors[i]))
+                    scaled_h = max(1, int(h * scale_factors[i]))
+                    packer.add_rect(scaled_w + 2 * padding, scaled_h + 2 * padding, rid=i)
+                packer.add_bin(canvas_width, canvas_height)
+                packer.pack()
+                scale_factor += 0.05
+                if scale_factor > 2.0:
+                    status.value = "Could not fit all images even with larger canvas."
+                    page.update()
+                    return None, None, None
+
+        canvas_area = canvas_width * canvas_height
+        total_image_area = 0
         area_percentages.clear()
-        area_percentages.extend([0.0] * num_images)
-        logo_statuses = []
+        all_rects = packer.rect_list()
+        for _, x, y, w, h, rid in all_rects:
+            orig_w, orig_h = orig_sizes[rid]
+            scaled_w = max(1, int(orig_w * scale_factors[rid]))
+            scaled_h = max(1, int(orig_h * scale_factors[rid]))
+            if w == scaled_h + 2 * padding and h == scaled_w + 2 * padding:
+                scaled_w, scaled_h = scaled_h, scaled_w
+            image_area = scaled_w * scaled_h
+            total_image_area += image_area
+            if canvas_area > 0:
+                area_pct = (image_area / canvas_area) * 100
+            else:
+                area_pct = 0.0
+            area_percentages.append(area_pct)
 
-        file_ext = "tiff" if cmyk_mode.value else "png"
-        for canvas_idx, (canvas_width, canvas_height, rects) in enumerate(canvases):
-            canvas_area = canvas_width * canvas_height
-            total_canvas_area += canvas_area
-            canvas_image_area = 0
+        if canvas_area > 0:
+            unused_pct = ((canvas_area - total_image_area) / canvas_area) * 100
+        else:
+            unused_pct = 0.0
 
-            canvas = Image.new(mode, (int(canvas_width), int(canvas_height)), (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0))
+        mode = "CMYK" if cmyk_mode.value else "RGB"
+        canvas = Image.new(
+            mode,
+            (int(canvas_width), int(canvas_height)),
+            (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0),
+        )
 
-            for _, x, y, w, h, rid in rects:
-                img = images[rid]
-                orig_w, orig_h = orig_sizes[rid]
-                scaled_w = max(1, int(orig_w * scale_factors[rid]))
-                scaled_h = max(1, int(orig_h * scale_factors[rid]))
-                if w == scaled_h + 2 * padding and h == scaled_w + 2 * padding:
-                    img = img.rotate(90, expand=True)
-                    scaled_w, scaled_h = scaled_h, scaled_w
-                img_resized = img.resize((scaled_w, scaled_h), Image.Resampling.LANCZOS)
-                padded_w = scaled_w + 2 * padding
-                padded_h = scaled_h + 2 * padding
-                padded_img = Image.new(mode, (padded_w, padded_h), (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0))
-                padded_img.paste(img_resized, (padding, padding))
-                canvas.paste(padded_img, (x, y))
-                image_area = scaled_w * scaled_h
-                canvas_image_area += image_area
-                if canvas_area > 0:
-                    area_percentages[rid] = (image_area / canvas_area) * 100
+        for _, x, y, w, h, rid in all_rects:
+            img = images[rid]
+            orig_w, orig_h = orig_sizes[rid]
+            scaled_w = max(1, int(orig_w * scale_factors[rid]))
+            scaled_h = max(1, int(orig_h * scale_factors[rid]))
+            if w == scaled_h + 2 * padding and h == scaled_w + 2 * padding:
+                img = img.rotate(90, expand=True)
+                scaled_w, scaled_h = scaled_h, scaled_w
+            img_resized = img.resize((scaled_w, scaled_h), Image.Resampling.LANCZOS)
+            padded_w = scaled_w + 2 * padding
+            padded_h = scaled_h + 2 * padding
+            padded_img = Image.new(
+                mode, (padded_w, padded_h), (255, 255, 255) if mode == "RGB" else (0, 0, 0, 0)
+            )
+            padded_img.paste(img_resized, (padding, padding))
+            canvas.paste(padded_img, (x, y))
 
-            # Add logo and shop note in the smallest suitable free space
-            logo_status = f"Canvas {canvas_idx + 1}: "
-            try:
-                logo_path = os.path.join("assets", "icon.png")
-                logo_img = Image.open(logo_path)
-                if cmyk_mode.value:
-                    logo_img = logo_img.convert("CMYK")
-                free_rects = find_free_spaces(canvas_width, canvas_height, rects, min_size=50)
-                if free_rects:
-                    # Prefer smallest suitable free space, prioritize bottom-right
-                    suitable_rects = sorted(free_rects)
-                    selected_rect = suitable_rects[0] if suitable_rects else None
-                    if selected_rect:
-                        fx, fy, fw, fh = selected_rect
-                        logo_w, logo_h = logo_img.size
-                        draw = ImageDraw.Draw(canvas)
-                        shop_text = "Karrayan Office Equipment Store"
-                        font_size = 24
-                        text_fits = False
-                        logo_scale = 0.98
+        # Add logo and shop note in the largest free space
+        logo_status = ""
+        try:
+            logo_path = os.path.join("assets", "icon.png")
+            logo_img = Image.open(logo_path)
+            if cmyk_mode.value:
+                logo_img = logo_img.convert("CMYK")
+            free_rects = find_free_spaces(canvas_width, canvas_height, all_rects, min_size=50)
+            if free_rects:
+                # Select the largest free rectangle by area
+                largest_rect = max(free_rects, key=lambda r: r[2] * r[3], default=None)
+                if largest_rect:
+                    fx, fy, fw, fh = largest_rect
+                    # Maximize logo size within free rectangle
+                    logo_w, logo_h = logo_img.size
+                    draw = ImageDraw.Draw(canvas)
+                    shop_text = "Karrayan Office Equipment Store"
+                    font_size = 24
+                    text_fits = False
+                    logo_scale = 0.98  # Start with 98% of free space to avoid edge issues
 
-                        while font_size >= 12 and not text_fits:
-                            try:
-                                font = ImageFont.truetype("arial.ttf", size=font_size)
-                            except:
-                                font = ImageFont.load_default()
-                            text_bbox = draw.textbbox((0, 0), shop_text, font=font)
-                            text_w = text_bbox[2] - text_bbox[0]
-                            text_h = text_bbox[3] - text_bbox[1]
+                    while font_size >= 12 and not text_fits:
+                        try:
+                            font = ImageFont.truetype("arial.ttf", size=font_size)
+                        except:
+                            font = ImageFont.load_default()
+                        text_bbox = draw.textbbox((0, 0), shop_text, font=font)
+                        text_w = text_bbox[2] - text_bbox[0]
+                        text_h = text_bbox[3] - text_bbox[1]
 
-                            scale = min(fw / logo_w, (fh - text_h - 10) / logo_h, 1.0) * logo_scale
-                            scaled_logo_w = int(logo_w * scale)
-                            scaled_logo_h = int(logo_h * scale)
+                        # Scale logo to fit within free rectangle
+                        scale = min(fw / logo_w, (fh - text_h - 10) / logo_h, 1.0) * logo_scale
+                        scaled_logo_w = int(logo_w * scale)
+                        scaled_logo_h = int(logo_h * scale)
 
-                            total_width = scaled_logo_w + 10 + text_w
-                            if total_width <= fw and max(scaled_logo_h, text_h) <= fh:
-                                text_fits = True
-                            else:
-                                font_size -= 2
-
-                        if scaled_logo_w > 0 and scaled_logo_h > 0:
-                            logo_resized = logo_img.resize((scaled_logo_w, scaled_logo_h), Image.Resampling.LANCZOS)
-                            total_content_width = scaled_logo_w + 10 + text_w if text_fits else scaled_logo_w
-                            logo_x = fx + (fw - total_content_width)  # Align to right
-                            logo_y = fy + (fh - scaled_logo_h)  # Align to bottom
-                            canvas.paste(logo_resized, (logo_x, logo_y))
-
-                            if text_fits:
-                                text_x = logo_x + scaled_logo_w + 10
-                                text_y = fy + (fh - text_h)  # Align to bottom
-                                text_color = (0, 0, 0) if mode == "RGB" else (0, 0, 0, 255)
-                                draw.text((text_x, text_y), shop_text, font=font, fill=text_color)
-                                logo_status += "Logo and shop note placed in smallest suitable free space (bottom-right)."
-                            else:
-                                logo_status += "Logo placed in smallest suitable free space (bottom-right), but shop note does not fit."
+                        # Check if logo and text fit side by side
+                        total_width = scaled_logo_w + 10 + text_w
+                        if total_width <= fw and max(scaled_logo_h, text_h) <= fh:
+                            text_fits = True
                         else:
-                            logo_status += "Free space too small to add logo and shop note."
+                            font_size -= 2  # Reduce font size to fit
+
+                    if scaled_logo_w > 0 and scaled_logo_h > 0:
+                        logo_resized = logo_img.resize(
+                            (scaled_logo_w, scaled_logo_h), Image.Resampling.LANCZOS
+                        )
+                        # Center logo and text in the free rectangle
+                        total_content_width = (
+                            scaled_logo_w + 10 + text_w if text_fits else scaled_logo_w
+                        )
+                        logo_x = fx + (fw - total_content_width) // 2
+                        logo_y = fy + (fh - scaled_logo_h) // 2
+                        canvas.paste(logo_resized, (logo_x, logo_y))
+
+                        if text_fits:
+                            text_x = logo_x + scaled_logo_w + 10
+                            text_y = fy + (fh - text_h) // 2
+                            text_color = (0, 0, 0) if mode == "RGB" else (0, 0, 0, 255)
+                            draw.text((text_x, text_y), shop_text, font=font, fill=text_color)
+                            logo_status = "Logo and shop note maximized in largest free space."
+                        else:
+                            logo_status = (
+                                "Logo maximized in largest free space, but shop note does not fit."
+                            )
                     else:
-                        logo_status += "No suitable free space to add logo and shop note."
+                        logo_status = "Free space too small to add logo and shop note."
                 else:
-                    logo_status += "No free space available to add logo and shop note."
-            except Exception as ex:
-                logo_status += f"Error loading or adding logo/shop note: {str(ex)}"
-            logo_statuses.append(logo_status)
+                    logo_status = "No suitable free space to add logo and shop note."
+            else:
+                logo_status = "No free space available to add logo and shop note."
+        except Exception as ex:
+            logo_status = f"Error loading or adding logo/shop note: {str(ex)}"
 
-            # Save canvas
-
-            output_path = f"a_series_photo_layout_{timestamp}_{canvas_idx + 1}.{file_ext}"
-            canvas_preview_path = f"a_series_photo_layout_preview_{timestamp}_{canvas_idx + 1}.png" if cmyk_mode.value else output_path
-
-            try:
-                canvas.save(output_path)
-                if cmyk_mode.value:
-                    rgb_canvas = canvas.convert("RGB")
-                    rgb_canvas.save(canvas_preview_path)
-                output_paths.append(output_path)
-                preview_paths.append(canvas_preview_path)
-                canvas_unused_pct = ((canvas_area - canvas_image_area) / canvas_area) * 100 if canvas_area > 0 else 0
-                total_unused_pct += canvas_unused_pct * (canvas_area / total_canvas_area) if total_canvas_area > 0 else 0
-            except Exception as ex:
-                logo_statuses[canvas_idx] = f"Canvas {canvas_idx + 1}: Error saving canvas: {str(ex)}"
-                continue
-
-        # Update UI with area percentages
         for i, ctrl in enumerate(photo_list.controls):
             scale_pct = int((scale_factors[i] - 1.0) * 100)
             scale_color = ft.Colors.GREEN if scale_factors[i] >= 1.0 else ft.Colors.RED
@@ -713,120 +595,92 @@ def main(page: ft.Page):
             ctrl.controls[0].controls[4].value = f"Scale: {scale_pct}%"
             ctrl.controls[0].controls[4].color = scale_color
 
-        # Update canvas previews
-        if not save_only and output_paths:
-            canvas_previews.controls.clear()
-            current_preview_index[0] = 0
-            canvas_previews.controls.append(
-                ft.GestureDetector(
-                    content=ft.Container(
-                        content=ft.Image(
-                            src=preview_paths[0] if preview_paths else "",
-                            width=page.width * 0.4 / a_series_ratio,
-                            height=page.height * 0.4,
-                            fit=ft.ImageFit.CONTAIN,
-                            border_radius=5
-                        ),
-                        border=ft.border.all(1, ft.Colors.BLUE_500),
-                        border_radius=5
-                    ),
-                    on_double_tap=open_collages
-                )
-            )
-            canvas_previews.visible = True
-            canvas_index_text.value = f"Canvas 1/{len(output_paths)}"
-            prev_button.disabled = True
-            next_button.disabled = len(preview_paths) <= 1
-            status.value = (
-                f"Generated {len(canvases)} canvas(es) saved as {', '.join([f'\'{os.path.basename(p)}\'' for p in output_paths])}. "
-                f"Orientation: {orientation}. "
-                f"Average unused area: {total_unused_pct:.2f}%. "
-                f"{' | '.join(logo_statuses)} Showing canvas 1 of {len(output_paths)}. Double-tap to open all canvases."
-            )
-            last_output_paths.clear()
-            last_output_paths.extend(output_paths)
-            page.update()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_ext = "tiff" if cmyk_mode.value else "png"
+        output_path = f"a_series_photo_layout_{timestamp}.{file_ext}"
+        preview_path = (
+            f"a_series_photo_layout_preview_{timestamp}.png" if cmyk_mode.value else output_path
+        )
 
-        if not output_paths:
-            status.value = "Failed to generate any canvases."
+        try:
+            canvas.save(output_path)
+            if cmyk_mode.value:
+                rgb_canvas = canvas.convert("RGB")
+                rgb_canvas.save(preview_path)
+            if not save_only:
+                collage_preview.src = preview_path
+                collage_preview.visible = True
+                last_output_path[0] = output_path
+                status.value = (
+                    f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. "
+                    f"Canvas size: {canvas_width}x{canvas_height} pixels. Unused area percentage: {unused_pct:.2f}%. "
+                    f"{logo_status} Double-tap the preview to open in default viewer."
+                )
+                page.update()
+            return output_path, canvas_width, canvas_height
+        except Exception as ex:
+            status.value = f"Error saving file: {str(ex)}"
             page.update()
             return None, None, None
 
-        return output_paths, canvas_sizes, orientation
-
-    generate_button = ft.ElevatedButton("Generate A-Series Layout", on_click=lambda e: generate_layout())
+    generate_button = ft.ElevatedButton(
+        "Generate A-Series Layout", on_click=lambda e: generate_layout()
+    )
 
     page.add(
-        ft.Column(
-            [
-                ft.ResponsiveRow(
-                    [
-                        ft.Column(
-                            col={"xs": 12, "md": 6},
-                            controls=[
-                                ft.Text("Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area.", size=14),
-                                cmyk_mode,
-                                padding_enabled,
-                                padding_size,
-                                num_canvases_input,
-                                ft.Text("Uploaded Photos:", size=14),
-                                ft.Container(
-                                    content=photo_list,
-                                    height=page.height * 0.4,
-                                    border=ft.border.all(1, ft.Colors.BLACK),
-                                    border_radius=5
-                                ),
-                                ft.Row(
-                                    [
-                                        add_button,
-                                        trash_button,
-                                        increase_button,
-                                        decrease_button,
-                                        select_all_button,
-                                        deselect_all_button,
-                                        invert_selection_button,
-                                        clear_selection_button,
-                                    ],
-                                    alignment=ft.MainAxisAlignment.CENTER,
-                                    spacing=10
-                                ),
-                                generate_button,
-                                status,
-                            ],
-                            alignment=ft.MainAxisAlignment.START,
-                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        ft.Column([
+            ft.ResponsiveRow([
+                ft.Column(
+                    col={"xs": 12, "md": 6},
+                    controls=[
+                        ft.Text(
+                            "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area.",
+                            size=14,
                         ),
-                        ft.Column(
-                            col={"xs": 12, "md": 6},
-                            controls=[
-                                ft.Text("Canvas Previews (Double-tap to open all canvases):", size=14),
-                                ft.Row(
-                                    [
-                                        prev_button,
-                                        canvas_index_text,
-                                        next_button
-                                    ],
-                                    alignment=ft.MainAxisAlignment.CENTER,
-                                    spacing=10
-                                ),
-                                ft.Container(
-                                    content=canvas_previews,
-                                    border=ft.border.all(1, ft.Colors.BLUE_500),
-                                    border_radius=5
-                                ),
-                            ],
-                            alignment=ft.MainAxisAlignment.START,
-                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        cmyk_mode,
+                        padding_enabled,
+                        padding_size,
+                        ft.Text("Uploaded Photos:", size=14),
+                        ft.Container(
+                            content=photo_list,
+                            height=page.height * 0.4,
+                            border=ft.border.all(1, ft.Colors.BLACK),
+                            border_radius=5,
                         ),
+                        ft.Row([
+                            add_button,
+                            trash_button,
+                            increase_button,
+                            decrease_button,
+                            select_all_button,
+                            deselect_all_button,
+                            invert_selection_button,
+                            clear_selection_button,
+                            ],
+                            alignment=ft.MainAxisAlignment.CENTER,
+                            spacing=10,
+                        ),
+                        generate_button,
+                        status,
                     ],
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    vertical_alignment=ft.CrossAxisAlignment.START,
-                )
-            ],
+                    alignment=ft.MainAxisAlignment.START,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
+                ft.Column(
+                    col={"xs": 12, "md": 6},
+                    controls=[
+                        ft.Text("Collage Preview (Double-tap to open):", size=14),
+                        collage_preview_gesture,
+                    ],
+                    alignment=ft.MainAxisAlignment.START,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                ),],
+                alignment=ft.MainAxisAlignment.CENTER,
+                vertical_alignment=ft.CrossAxisAlignment.START,
+            )],
             scroll=ft.ScrollMode.AUTO,
-            expand=True
-        )
-    )
+            expand=True,
+    ))
 
     def on_resize(e):
         photo_size = get_list_params()
@@ -834,13 +688,18 @@ def main(page: ft.Page):
             ctrl.controls[0].controls[1].width = photo_size
             ctrl.controls[0].controls[1].height = photo_size
             scale_pct = int((scale_factors[photo_list.controls.index(ctrl)] - 1.0) * 100)
-            scale_color = ft.Colors.GREEN if scale_factors[photo_list.controls.index(ctrl)] >= 1.0 else ft.Colors.RED
+            scale_color = (
+                ft.Colors.GREEN
+                if scale_factors[photo_list.controls.index(ctrl)] >= 1.0
+                else ft.Colors.RED
+            )
             ctrl.controls[0].controls[4].value = f"Scale: {scale_pct}%"
             ctrl.controls[0].controls[4].color = scale_color
-            ctrl.controls[0].controls[3].value = f"Area: {area_percentages[photo_list.controls.index(ctrl)]:.2f}%"
-        for ctrl in canvas_previews.controls:
-            ctrl.content.content.width = page.width * 0.4 / a_series_ratio
-            ctrl.content.content.height = page.height * 0.4
+            ctrl.controls[0].controls[
+                3
+            ].value = f"Area: {area_percentages[photo_list.controls.index(ctrl)]:.2f}%"
+        collage_preview.width = page.width * 0.4 / a_series_ratio
+        collage_preview.height = page.height * 0.4
         page.update()
 
     page.on_resize = on_resize
