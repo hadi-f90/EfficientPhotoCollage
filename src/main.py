@@ -10,7 +10,7 @@ from rectpack import newPacker
 
 
 def main(page: ft.Page):
-    page.title = "Photo Arranger for A-Series Printing with Rectpack"
+    page.title = "Photo Arranger -Creating  print-ready collage of given photos in desired paper ration with Rectpack"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.padding = 10
     page.update()
@@ -23,16 +23,16 @@ def main(page: ft.Page):
     last_output_path = [None]  # Store last generated collage path
 
     # Status text
-    status = ft.Text("", size=14)
+    status = ft.Text("No photos selected yet!", size=14)
 
     # Checkbox for CMYK mode
     cmyk_mode = ft.Checkbox(
-        label="Use CMYK color profile for printing (saves as TIFF)", value=False
+        label="CMYK color profile - use it for printing (saves as TIFF)", value=False
     )
 
     # Checkbox and input for padding
     padding_enabled = ft.Checkbox(
-        label="Add padding border around photos for easier cutting", value=False
+        label="White border between photos for easier cutting", value=False
     )
     padding_size = ft.TextField(label="Padding size (pixels)", value="10", width=150, disabled=True)
 
@@ -41,6 +41,51 @@ def main(page: ft.Page):
         page.update()
 
     padding_enabled.on_change = on_padding_toggle
+
+    # Paper ratio selection
+    paper_ratios = {
+        "A Series": math.sqrt(2),  # Default ratio
+        "B Series": 1.0 / math.sqrt(2),
+        "C Series": 1.0 / math.sqrt(2),
+        "Letter": 11.0 / 8.5,
+        "Custom size": None,
+    }
+    current_ratio = paper_ratios["A Series"]
+    custom_width = ft.TextField(label="Custom Width (pixels)", value="", width=150, visible=False)
+    custom_height = ft.TextField(label="Custom Height (pixels)", value="", width=150, visible=False)
+
+    def update_ratio(e):
+        nonlocal current_ratio
+        selected_ratio = paper_ratio_dropdown.value
+        if selected_ratio == "Custom":
+            custom_width.visible = True
+            custom_height.visible = True
+            try:
+                width = float(custom_width.value) if custom_width.value else 1
+                height = float(custom_height.value) if custom_height.value else 1
+                current_ratio = height / width if width > 0 else 1.0
+            except ValueError:
+                current_ratio = 1.0
+                status.value = "Invalid custom dimensions, using 1:1 ratio."
+        else:
+            custom_width.visible = False
+            custom_height.visible = False
+            current_ratio = paper_ratios[selected_ratio]
+        page.update()
+
+    paper_ratio_dropdown = ft.Dropdown(
+        label="Paper Ratio",
+        options=[
+            ft.dropdown.Option("A Series"),
+            ft.dropdown.Option("B Series"),
+            ft.dropdown.Option("C Series"),
+            ft.dropdown.Option("Letter"),
+            ft.dropdown.Option("Custom"),
+        ],
+        value="A Series",
+        on_change=update_ratio,
+        width=140,
+    )
 
     # List view for uploaded photo previews
     def get_list_params():
@@ -55,7 +100,6 @@ def main(page: ft.Page):
     photo_list = ft.ListView(expand=True, spacing=10, padding=15, auto_scroll=True)
 
     # Image control for previewing the final collage
-    a_series_ratio = math.sqrt(2)
     def open_collage(e):
         if last_output_path[0]:
             try:
@@ -75,7 +119,7 @@ def main(page: ft.Page):
 
     collage_preview = ft.Image(
         src="",
-        width=page.width * 0.4 / a_series_ratio,
+        width=page.width * 0.4 / current_ratio,
         height=page.height * 0.4,
         fit=ft.ImageFit.CONTAIN,
         visible=False,
@@ -405,7 +449,6 @@ def main(page: ft.Page):
             page.update()
             return None, None, None
 
-        a_series_ratio = math.sqrt(2)
         orig_sizes = [(img.width, img.height) for img in images]
         num_images = len(images)
 
@@ -419,10 +462,10 @@ def main(page: ft.Page):
         )
         padding = max(0, padding)
 
-        # Try portrait and landscape orientations
-        portrait_w, portrait_h = find_min_canvas(orig_sizes, num_images, a_series_ratio)
+        # Use current_ratio for canvas dimensions
+        portrait_w, portrait_h = find_min_canvas(orig_sizes, num_images, current_ratio)
         portrait_area = portrait_w * portrait_h if portrait_w != float('inf') else float('inf')
-        landscape_w, landscape_h = find_min_canvas(orig_sizes, num_images, 1 / a_series_ratio)
+        landscape_w, landscape_h = find_min_canvas(orig_sizes, num_images, 1 / current_ratio)
         landscape_area = landscape_w * landscape_h if landscape_w != float('inf') else float('inf')
 
         if portrait_area <= landscape_area:
@@ -624,7 +667,7 @@ def main(page: ft.Page):
             return None, None, None
 
     generate_button = ft.ElevatedButton(
-        "Generate A-Series Layout", on_click=lambda e: generate_layout()
+        "Arrange Photos into Canvas", on_click=lambda e: generate_layout()
     )
 
     page.add(
@@ -634,9 +677,10 @@ def main(page: ft.Page):
                     col={"xs": 12, "md": 6},
                     controls=[
                         ft.Text(
-                            "Upload multiple photos to generate a printable layout with A-series proportions, maximizing filled area.",
-                            size=14,
+                            "Select multiple photos to generate a printable layout with desired proportions, minimizing waste area.",
+                            size=12,
                         ),
+                        ft.Text("Click + to add photos here:", size=16),
                         ft.Container(
                             content=photo_list,
                             height=page.height * 0.4,
@@ -656,6 +700,8 @@ def main(page: ft.Page):
                             alignment=ft.MainAxisAlignment.CENTER,
                             spacing=10,
                         ),
+                        ft.Divider(),
+                        ft.Text("Settings:", size=16),
                         cmyk_mode,
                         ft.Row([
                             padding_enabled,
@@ -664,7 +710,15 @@ def main(page: ft.Page):
                             alignment=(ft.MainAxisAlignment.CENTER,),
                             spacing=(10,),
                         ),
-                        ft.Text("Uploaded Photos:", size=14),
+                        ft.Row([
+                            paper_ratio_dropdown,
+                            custom_width,
+                            custom_height,
+                            ],
+                            alignment=(ft.MainAxisAlignment.CENTER,),
+                            spacing=(10,),
+                        ),
+                        ft.Divider(),
                         generate_button,
                         status,
                     ],
@@ -703,7 +757,7 @@ def main(page: ft.Page):
             ctrl.controls[0].controls[
                 3
             ].value = f"Area: {area_percentages[photo_list.controls.index(ctrl)]:.2f}%"
-        collage_preview.width = page.width * 0.4 / a_series_ratio
+        collage_preview.width = page.width * 0.4 / current_ratio
         collage_preview.height = page.height * 0.4
         page.update()
 
