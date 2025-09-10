@@ -48,31 +48,48 @@ def main(page: ft.Page):
         "B Series": 1.0 / math.sqrt(2),
         "C Series": 1.0 / math.sqrt(2),
         "Letter": 11.0 / 8.5,
-        "Custom size": None,
+        "Custom ratio": None,
     }
     current_ratio = paper_ratios["A Series"]
-    custom_width = ft.TextField(label="Custom Width (pixels)", value="", width=150, visible=False)
-    custom_height = ft.TextField(label="Custom Height (pixels)", value="", width=150, visible=False)
+    custom_ratio = ft.TextField(
+        label="Custom Ratio (e.g., 5:7 or 1.4286)", value="", width=150, visible=False
+    )
+
+    def parse_ratio(ratio_str):
+        if not ratio_str:
+            return 1.0
+        try:
+            if ":" in ratio_str:
+                width, height = map(float, ratio_str.split(":"))
+                return height / width if width > 0 else 1.0
+            return float(ratio_str)
+        except ValueError:
+            return 1.0
 
     def update_ratio(e):
         nonlocal current_ratio
         selected_ratio = paper_ratio_dropdown.value
-        if selected_ratio == "Custom":
-            custom_width.visible = True
-            custom_height.visible = True
-            try:
-                width = float(custom_width.value) if custom_width.value else 1
-                height = float(custom_height.value) if custom_height.value else 1
-                current_ratio = height / width if width > 0 else 1.0
-            except ValueError:
-                current_ratio = 1.0
-                status.value = "Invalid custom dimensions, using 1:1 ratio."
+        if selected_ratio == "Custom ratio":
+            custom_ratio.visible = True
+            current_ratio = parse_ratio(custom_ratio.value)
+            if current_ratio == 1.0:
+                status.value = "Invalid custom ratio, using 1:1."
         else:
-            custom_width.visible = False
-            custom_height.visible = False
+            custom_ratio.visible = False
             current_ratio = paper_ratios[selected_ratio]
+        collage_preview.width = page.width * 0.4 / current_ratio
         page.update()
 
+    def on_custom_ratio_change(e):
+        nonlocal current_ratio
+        if paper_ratio_dropdown.value == "Custom ratio":
+            current_ratio = parse_ratio(custom_ratio.value)
+            if current_ratio == 1.0:
+                status.value = "Invalid custom ratio, using 1:1."
+            collage_preview.width = page.width * 0.4 / current_ratio
+            page.update()
+
+    custom_ratio.on_change = on_custom_ratio_change
     paper_ratio_dropdown = ft.Dropdown(
         label="Paper Ratio",
         options=[
@@ -80,7 +97,7 @@ def main(page: ft.Page):
             ft.dropdown.Option("B Series"),
             ft.dropdown.Option("C Series"),
             ft.dropdown.Option("Letter"),
-            ft.dropdown.Option("Custom"),
+            ft.dropdown.Option("Custom ratio"),
         ],
         value="A Series",
         on_change=update_ratio,
@@ -712,8 +729,7 @@ def main(page: ft.Page):
                         ),
                         ft.Row([
                             paper_ratio_dropdown,
-                            custom_width,
-                            custom_height,
+                            custom_ratio,
                             ],
                             alignment=(ft.MainAxisAlignment.CENTER,),
                             spacing=(10,),
