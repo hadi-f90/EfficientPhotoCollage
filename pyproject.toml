@@ -1,5 +1,9 @@
+[build-system]
+requires = ["flet>=0.26.0"]
+build-backend = "flet.build"
+
 [project]
-name = "efficient-photo-collage-arranger"
+name = "Efficient Photo Collage Arranger"
 version = "0.1.0"
 description = "A Photo Collage maker Which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing."
 readme = "README.md"
@@ -7,10 +11,11 @@ requires-python = ">=3.9"
 authors = [
     { name = "Hadi Fadakar Sani", email = "hadi_f@live.com" }
 ]
+
 dependencies = [
     "flet>=0.26.0",
-    "rectpack",
-    "Pillow"
+    "Pillow",
+    "rectangle-packer",
 ]
 
 [tool.flet]
@@ -20,14 +25,16 @@ org = "com.mycompany"
 
 # project display name that is used as an app title on Android and iOS home screens,
 # shown in window titles and about app dialogs on desktop.
-product = "efficient-photo-collage-arranger"
+product = "Efficient Photo Collage Arranger"
 
 # company name to display in about app dialogs
 company = "Flet"
 
 # copyright text to display in about app dialogs
 copyright = "Copyright (C) 2025 by Flet"
-
+icon = "assets/icon.png"
+name = "Efficient Photo Collage Arranger"
+description = "A Photo Collage maker Which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing."
 [tool.flet.app]
 path = "src"
 
@@ -41,3 +48,8 @@ package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 flet = {extras = ["all"], version = "0.28.3"}
+
+[tool.flet.android]
+# Android-specific settings (optional)
+package = "com.example.photo_arranger"
+version_code = 1
