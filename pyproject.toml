@@ -5,7 +5,7 @@ build-backend = "flet.build"
 [project]
 name = "Efficient Photo Collage Arranger"
 version = "0.1.0"
-description = "A Photo Collage maker Which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing."
+description = 'A Photo Collage maker which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing.'
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
@@ -34,7 +34,8 @@ company = "Flet"
 copyright = "Copyright (C) 2025 by Flet"
 icon = "assets/icon.png"
 name = "Efficient Photo Collage Arranger"
-description = "A Photo Collage maker Which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing."
+description = 'A Photo Collage maker which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing.'
+
 [tool.flet.app]
 path = "src"
 
