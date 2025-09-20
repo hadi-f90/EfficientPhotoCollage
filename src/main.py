@@ -5,7 +5,7 @@ import subprocess
 from datetime import datetime
 
 import toga
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from rectpack import newPacker
 from toga.constants import COLUMN, HIDDEN, ROW, VISIBLE
 from toga.style import Pack
@@ -48,14 +48,14 @@ class PhotoArranger(toga.App):
 
         # Paper ratio selection - Fixed Selection widget
         paper_options = [
-            ("A Series", "A Series"),
-            ("B Series", "B Series"),
-            ("C Series", "C Series"),
-            ("Letter", "Letter"),
-            ("Custom ratio", "Custom ratio"),
+            "A Series",
+            "B Series",
+            "C Series",
+            "Letter",
+            "Custom ratio",
         ]
         self.paper_ratio_selection = toga.Selection(
-            items=[option[0] for option in paper_options],
+            items=paper_options,
             value="A Series",
             on_change=self.update_ratio,
             style=Pack(width=140, margin=5),
@@ -114,8 +114,9 @@ class PhotoArranger(toga.App):
             style=Pack(
                 direction=ROW,
                 margin=5,
-                align_items="center",  # wrap=True
-        ),)
+                justify_content="center",
+            ),
+        )
 
         # Generate button
         self.generate_button = toga.Button(
@@ -141,11 +142,11 @@ class PhotoArranger(toga.App):
                 self.cmyk_mode,
                 toga.Box(
                     children=[self.padding_enabled, self.padding_size],
-                    style=Pack(direction=ROW, align_items="center", margin=5),
+                    style=Pack(direction=ROW, justify_content="center", margin=5),
                 ),
                 toga.Box(
                     children=[self.paper_ratio_selection, self.custom_ratio],
-                    style=Pack(direction=ROW, align_items="center", margin=5),
+                    style=Pack(direction=ROW, justify_content="center", margin=5),
                 ),
                 toga.Divider(style=Pack(margin=5)),
                 self.generate_button,
@@ -213,12 +214,11 @@ class PhotoArranger(toga.App):
 
     async def handle_upload(self, widget):
         try:
-            files = await self.main_window.dialog(
-                toga.OpenFileDialog(
-                    title="Select Photos",
-                    multiple_select=True,
-                    file_types=["jpg", "png", "jpeg"],
-            ))
+            files = await self.main_window.open_file_dialog(
+                title="Select Photos",
+                multiple_select=True,
+                file_types=["jpg", "jpeg", "png"],
+            )
             if files:
                 if not self.images:  # Clear existing if first load
                     self.images.clear()
@@ -237,6 +237,7 @@ class PhotoArranger(toga.App):
                         self.status.text = (
                             f"Skipped {os.path.basename(path)}: Only JPG and PNG supported."
                         )
+                        self.status.refresh()
                         continue
                     try:
                         img = Image.open(path)
@@ -257,13 +258,13 @@ class PhotoArranger(toga.App):
                         )
                         dim_label = toga.Label(
                             f"{img.width}x{img.height}",
-                            style=Pack(width=100, margin=2, align_items="center"),
+                            style=Pack(width=100, margin=2, text_align="center"),
                         )
                         area_label = toga.Label(
-                            "Area: 0.00%", style=Pack(width=100, margin=2, align_items="center")
+                            "Area: 0.00%", style=Pack(width=100, margin=2, text_align="center")
                         )
                         scale_label = toga.Label(
-                            "Scale: 0%", style=Pack(width=100, margin=2, align_items="center")
+                            "Scale: 0%", style=Pack(width=100, margin=2, text_align="center")
                         )
 
                         row = toga.Box(
@@ -275,7 +276,7 @@ class PhotoArranger(toga.App):
                                 area_label,
                                 scale_label,
                             ],
-                            style=Pack(direction=ROW, align_items="center", margin=5),
+                            style=Pack(direction=ROW, justify_content="center", margin=5),
                         )
 
                         # Store references to widgets for later updates
@@ -287,17 +288,20 @@ class PhotoArranger(toga.App):
                         self.photo_rows.append(row)
                         self.photo_container.add(row)
                         self.photo_container.add(toga.Divider(style=Pack(margin=2)))
-
+                        self.photo_container.refresh()
                         added_count += 1
                     except Exception as ex:
                         self.status.text = f"Error loading {os.path.basename(path)}: {str(ex)}"
+                        self.status.refresh()
                         continue
 
                 self.status.text = f"Added {added_count} new images successfully."
                 self.collage_preview.image = None
-                self.main_window.refresh()
+                self.collage_preview.refresh()
+                self.status.refresh()
         except Exception as e:
             self.status.text = f"Error opening file dialog: {str(e)}"
+            self.status.refresh()
 
     def delete_selected(self, widget):
         to_delete = [i for i, row in enumerate(self.photo_rows) if row.checkbox.value]
@@ -318,7 +322,9 @@ class PhotoArranger(toga.App):
         self.status.text = f"Deleted {len(to_delete)} images."
         self.collage_preview.image = None
         self.update_photo_list()
-        self.main_window.refresh()
+        self.photo_container.refresh()
+        self.collage_preview.refresh()
+        self.status.refresh()
 
     def increase_size(self, widget):
         selected_count = 0
@@ -332,7 +338,9 @@ class PhotoArranger(toga.App):
             self.status.text = f"Increased size of {selected_count} selected photos by 10%."
         self.collage_preview.image = None
         self.update_photo_list()
-        self.main_window.refresh()
+        self.photo_container.refresh()
+        self.collage_preview.refresh()
+        self.status.refresh()
 
     def decrease_size(self, widget):
         selected_count = 0
@@ -347,7 +355,9 @@ class PhotoArranger(toga.App):
             self.status.text = f"Decreased size of {selected_count} selected photos by 10%."
         self.collage_preview.image = None
         self.update_photo_list()
-        self.main_window.refresh()
+        self.photo_container.refresh()
+        self.collage_preview.refresh()
+        self.status.refresh()
 
     def select_all(self, widget):
         selected_count = 0
@@ -360,7 +370,7 @@ class PhotoArranger(toga.App):
             if selected_count > 0
             else "All images already selected."
         )
-        self.main_window.refresh()
+        self.status.refresh()
 
     def deselect_all(self, widget):
         deselected_count = 0
@@ -373,7 +383,7 @@ class PhotoArranger(toga.App):
             if deselected_count > 0
             else "No images were selected."
         )
-        self.main_window.refresh()
+        self.status.refresh()
 
     def invert_selection(self, widget):
         toggled_count = 0
@@ -385,7 +395,7 @@ class PhotoArranger(toga.App):
             if toggled_count > 0
             else "No images to invert."
         )
-        self.main_window.refresh()
+        self.status.refresh()
 
     def clear_selection(self, widget):
         if self.images:
@@ -397,9 +407,11 @@ class PhotoArranger(toga.App):
             self.photo_container.clear()
             self.status.text = "Cleared all images."
             self.collage_preview.image = None
-            self.main_window.refresh()
+            self.collage_preview.refresh()
+            self.photo_container.refresh()
         else:
             self.status.text = "No images to clear."
+        self.status.refresh()
 
     def update_photo_list(self):
         for i, row in enumerate(self.photo_rows):
@@ -407,10 +419,11 @@ class PhotoArranger(toga.App):
                 continue
 
             scale_pct = int((self.scale_factors[i] - 1.0) * 100)
-            # Toga doesn't support dynamic text color easily, so we'll just update text
             area_pct = self.area_percentages[i] if i < len(self.area_percentages) else 0.0
             row.area_label.text = f"Area: {area_pct:.2f}%"
             row.scale_label.text = f"Scale: {scale_pct}%"
+            row.area_label.refresh()
+            row.scale_label.refresh()
             row.refresh()
 
     def find_min_canvas(self, orig_sizes, num_images, ratio):
@@ -480,7 +493,7 @@ class PhotoArranger(toga.App):
     def generate_layout(self, widget):
         if not self.images:
             self.status.text = "No images loaded. Please upload photos first."
-            self.main_window.refresh()
+            self.status.refresh()
             return
 
         orig_sizes = [(img.width, img.height) for img in self.images]
@@ -511,7 +524,7 @@ class PhotoArranger(toga.App):
 
         if canvas_width == float("inf"):
             self.status.text = "Could not fit all images."
-            self.main_window.refresh()
+            self.status.refresh()
             return
 
         packer = newPacker(rotation=True)
@@ -540,7 +553,7 @@ class PhotoArranger(toga.App):
                 attempt += 1
                 if scale_factor > 2.0:
                     self.status.text = "Could not fit all images even with larger canvas."
-                    self.main_window.refresh()
+                    self.status.refresh()
                     return
 
         canvas_area = canvas_width * canvas_height
@@ -645,10 +658,10 @@ class PhotoArranger(toga.App):
                 f"{logo_status}"
             )
             self.collage_preview.refresh()
-            self.main_window.refresh()
+            self.status.refresh()
         except Exception as ex:
             self.status.text = f"Error saving file: {str(ex)}"
-            self.main_window.refresh()
+            self.status.refresh()
 
     def open_collage(self, widget):
         if self.last_output_path and os.path.exists(self.last_output_path):
@@ -665,7 +678,7 @@ class PhotoArranger(toga.App):
                 self.status.text = f"Error opening collage: {str(ex)}"
         else:
             self.status.text = "No collage generated yet."
-        self.main_window.refresh()
+        self.status.refresh()
 
     def on_resize(self, window):
         width, _ = window.size
@@ -677,6 +690,7 @@ class PhotoArranger(toga.App):
 
         for row in self.photo_rows:
             row.children[1].style = Pack(width=photo_size, height=photo_size)
+            row.children[1].refresh()
             row.refresh()
 
         # Update preview size
