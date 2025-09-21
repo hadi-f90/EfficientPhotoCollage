@@ -275,10 +275,17 @@ class PhotoArranger(toga.App):
                         img_view = toga.ImageView(
                             toga.Image(path), style=Pack(width=150, height=150, margin=2)
                         )
-
+                        _base_name = str(os.path.basename(path))
                         # Create labels
-                        name_label = toga.Label(
-                            os.path.basename(path), style=Pack(width=150, margin=2)
+                        name_label = toga.Label((
+                            '\n'.join(
+                                _base_name[i - 10 : i + 8]
+                                for i in range(8, len(_base_name), 8)
+                            )
+                            if len(_base_name) > 1
+                            else _base_name
+                            ),
+                            style=Pack(width=150, margin=2),
                         )
                         dim_label = toga.Label(
                             f"{img.width}x{img.height}",
