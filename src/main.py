@@ -268,30 +268,30 @@ class PhotoArranger(toga.App):
                         self.scale_factors.append(1.0)
                         self.area_percentages.append(0.0)
 
-                        # Create row for photo
+                        # Create checkbox
                         checkbox = toga.Switch(text="", value=False, style=Pack(margin=2))
+
+                        # Create image view
                         img_view = toga.ImageView(
                             toga.Image(path), style=Pack(width=150, height=150, margin=2)
                         )
-                        print('ImageView created')
+
+                        # Create labels
                         name_label = toga.Label(
                             os.path.basename(path), style=Pack(width=150, margin=2)
                         )
-                        print('Name label created')
                         dim_label = toga.Label(
                             f"{img.width}x{img.height}",
                             style=Pack(width=100, margin=2, text_align="center"),
                         )
-                        print('Dim label created')
                         area_label = toga.Label(
                             "Area: 0.00%", style=Pack(width=100, margin=2, text_align="center")
                         )
-                        print('Area label created')
                         scale_label = toga.Label(
                             "Scale: 0%", style=Pack(width=100, margin=2, text_align="center")
                         )
-                        print('Scale label created')
 
+                        # Create row box
                         row = toga.Box(
                             children=[
                                 checkbox,
@@ -303,31 +303,28 @@ class PhotoArranger(toga.App):
                             ],
                             style=Pack(direction=ROW, justify_content="start", margin=5),
                         )
-                        print('Row created')
 
                         # Store references to widgets for later updates
-                        print('refernces stored 307')
                         row.checkbox = checkbox
+                        row.img_view = img_view
+                        row.name_label = name_label
+                        row.dim_label = dim_label
                         row.area_label = area_label
                         row.scale_label = scale_label
-                        row.img_view = img_view  # Store for refresh
                         row.img_index = len(self.photo_rows)
 
                         self.photo_rows.append(row)
                         self.photo_container.add(row)
                         self.photo_container.add(toga.Divider(style=Pack(margin=2)))
-                        print('Row and divider added')
 
                         added_count += 1
                         row.refresh()
                         img_view.refresh()
                         self.photo_container.refresh()
                         self.photo_scroll.refresh()
-                        print('Refreshed after add')
                     except Exception as ex:
                         self.status.text = f"Error loading {os.path.basename(path)}: {str(ex)}"
                         self.status.refresh()
-                        print(f"Exception in loading image: {str(ex)}")  # Debug
 
                 self.status.text = f"Added {added_count} new images successfully."
                 self.collage_preview.image = None
@@ -777,10 +774,8 @@ class PhotoArranger(toga.App):
             photo_size = 120
 
         for row in self.photo_rows:
-            row.children[1].style = Pack(width=photo_size, height=photo_size)
-            if hasattr(row, 'img_view'):
-                row.img_view.refresh()
-            row.children[1].refresh()
+            row.img_view.style = Pack(width=photo_size, height=photo_size)
+            row.img_view.refresh()
             row.refresh()
 
         # Update preview size
