@@ -161,7 +161,7 @@ class PhotoArranger(toga.App):
                 self.generate_button,
                 self.status,
             ],
-            style=Pack(direction=COLUMN, margin=10, flex=1),
+            style=Pack(direction=COLUMN, margin=5, flex=1),
         )
 
         # Right column
@@ -172,7 +172,7 @@ class PhotoArranger(toga.App):
                 toga.Divider(),
                 toga.Box(
                     children=[self.open_preview_button, self.print_button],
-                    style=Pack(direction=ROW, justify_content="center", margin=5),
+                    style=Pack(direction=ROW, justify_content="end", margin=0),
             ),],
             style=Pack(direction=COLUMN, margin=10, flex=1),
         )
@@ -184,7 +184,9 @@ class PhotoArranger(toga.App):
         )
 
         # Main window - resizable by default
-        self.main_window = toga.MainWindow(size=(1200, 800), resizable=True, title="Photo Arranger")
+        self.main_window = toga.MainWindow(
+            size=(1400, 800), resizable=True, title="Efficient Photo Arranger"
+        )
         self.main_window.content = main_box
         self.main_window.on_resize = self.on_resize
         self.main_window.show()
@@ -265,14 +267,9 @@ class PhotoArranger(toga.App):
                         self.file_paths.append(path)
                         self.scale_factors.append(1.0)
                         self.area_percentages.append(0.0)
-                        print(
-                            self.images, self.file_paths, self.scale_factors, self.area_percentages
-                        )
 
                         # Create row for photo
-                        print('line 273')
                         checkbox = toga.Switch(text="", value=False, style=Pack(margin=2))
-                        print('Checkbox created')
                         img_view = toga.ImageView(
                             toga.Image(path), style=Pack(width=150, height=150, margin=2)
                         )
