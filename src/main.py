@@ -34,14 +34,14 @@ class PhotoArranger(toga.App):
 
         # CMYK switch
         self.cmyk_mode = toga.Switch(
-            "CMYK color profile - use it for printing (saves as TIFF)",
+            text="CMYK color profile - use it for printing (saves as TIFF)",
             value=False,
-            style=Pack(margin=5),
+            style=Pack(margin=2, text_align="left"),
         )
 
         # Padding switch and input
         self.padding_enabled = toga.Switch(
-            "White border between photos for easier cutting",
+            text="White border between photos for easier cutting",
             value=False,
             on_change=self.on_padding_toggle,
             style=Pack(margin=5),
@@ -169,6 +169,7 @@ class PhotoArranger(toga.App):
             children=[
                 toga.Label("Collage Preview:", style=Pack(margin=5, font_size=14)),
                 self.collage_preview,
+                toga.Divider(),
                 toga.Box(
                     children=[self.open_preview_button, self.print_button],
                     style=Pack(direction=ROW, justify_content="center", margin=5),
@@ -178,7 +179,7 @@ class PhotoArranger(toga.App):
 
         # Main box
         main_box = toga.Box(
-            children=[left_box, right_box],
+            children=[left_box, toga.Divider(direction=1), right_box],
             style=Pack(direction=ROW),
         )
 
@@ -228,7 +229,6 @@ class PhotoArranger(toga.App):
 
     async def handle_upload(self, widget):
         try:
-            # Fixed: Use the new dialog method with simple file extensions
             file_dialog = toga.OpenFileDialog(
                 title="Select Photos",
                 multiple_select=True,
@@ -261,30 +261,39 @@ class PhotoArranger(toga.App):
                         if self.cmyk_mode.value:
                             img = img.convert("CMYK")
                         self.images.append(img)
+
                         self.file_paths.append(path)
                         self.scale_factors.append(1.0)
                         self.area_percentages.append(0.0)
+                        print(
+                            self.images, self.file_paths, self.scale_factors, self.area_percentages
+                        )
 
                         # Create row for photo
-                        checkbox = toga.Switch(value=False, style=Pack(margin=2, width=20))
-                        # Fix: Ensure absolute path and refresh image view
-                        abs_path = os.path.abspath(path)
+                        print('line 273')
+                        checkbox = toga.Switch(text="", value=False, style=Pack(margin=2))
+                        print('Checkbox created')
                         img_view = toga.ImageView(
-                            toga.Image(abs_path), style=Pack(width=150, height=150, margin=2)
+                            toga.Image(path), style=Pack(width=150, height=150, margin=2)
                         )
+                        print('ImageView created')
                         name_label = toga.Label(
                             os.path.basename(path), style=Pack(width=150, margin=2)
                         )
+                        print('Name label created')
                         dim_label = toga.Label(
                             f"{img.width}x{img.height}",
                             style=Pack(width=100, margin=2, text_align="center"),
                         )
+                        print('Dim label created')
                         area_label = toga.Label(
                             "Area: 0.00%", style=Pack(width=100, margin=2, text_align="center")
                         )
+                        print('Area label created')
                         scale_label = toga.Label(
                             "Scale: 0%", style=Pack(width=100, margin=2, text_align="center")
                         )
+                        print('Scale label created')
 
                         row = toga.Box(
                             children=[
@@ -297,8 +306,10 @@ class PhotoArranger(toga.App):
                             ],
                             style=Pack(direction=ROW, justify_content="start", margin=5),
                         )
+                        print('Row created')
 
                         # Store references to widgets for later updates
+                        print('refernces stored 307')
                         row.checkbox = checkbox
                         row.area_label = area_label
                         row.scale_label = scale_label
@@ -308,16 +319,19 @@ class PhotoArranger(toga.App):
                         self.photo_rows.append(row)
                         self.photo_container.add(row)
                         self.photo_container.add(toga.Divider(style=Pack(margin=2)))
+                        print('Row and divider added')
+
+                        added_count += 1
                         row.refresh()
                         img_view.refresh()
-                        added_count += 1
+                        self.photo_container.refresh()
+                        self.photo_scroll.refresh()
+                        print('Refreshed after add')
                     except Exception as ex:
                         self.status.text = f"Error loading {os.path.basename(path)}: {str(ex)}"
                         self.status.refresh()
-                        continue
+                        print(f"Exception in loading image: {str(ex)}")  # Debug
 
-                self.photo_container.refresh()
-                self.photo_scroll.refresh()
                 self.status.text = f"Added {added_count} new images successfully."
                 self.collage_preview.image = None
                 self.open_preview_button.enabled = False
@@ -728,8 +742,8 @@ class PhotoArranger(toga.App):
             self.open_preview_button.enabled = True
             self.print_button.enabled = True
             self.status.text = (
-                f"Layout generated and saved as '{output_path}'. Orientation: {orientation}. "
-                f"Canvas size: {canvas_width}x{canvas_height} pixels. Unused area: {unused_pct:.2f}%. "
+                f"Layout generated and saved as '{output_path}'.\nOrientation: {orientation}.\n"
+                f"Canvas size: {canvas_width}x{canvas_height} pixels.\nUnused area: {unused_pct:.2f}%. "
                 f"{logo_status}"
             )
             self.collage_preview.refresh()
