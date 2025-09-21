@@ -1,56 +1,154 @@
-[build-system]
-requires = ["flet>=0.26.0"]
-build-backend = "flet.build"
+# This project was generated with 0.3.25 using template: https://github.com/beeware/briefcase-template @ v0.3.25
+[tool.briefcase]
+project_name = "Efficient Photo Arranger"
+bundle = "com.karrayan.EfficientPhotoArranger"
+version = "0.0.1"
+url = "https://github.com/hadi-f90/EfficientPhotoCollage"
+license.file = "LICENSE"
+author = "Hadi F"
+author_email = "62212402+hadi-f90@users.noreply.github.com"
 
-[project]
-name = "Efficient Photo Collage Arranger"
-version = "0.1.0"
-description = 'A Photo Collage maker which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing.'
-readme = "README.md"
-requires-python = ">=3.9"
-authors = [
-    { name = "Hadi Fadakar Sani", email = "hadi_f@live.com" }
+[tool.briefcase.app.EfficientPhotoArranger]
+formal_name = "Efficient Photo Arranger"
+description = "Arrange photos to hopefully minimize paper waste."
+long_description = """Efficient Photo Arranger creates optimized photo collages for printing,
+minimizing paper waste using rectangle packing algorithms.
+"""
+sources = [
+    "src/EfficientPhotoArranger",
+]
+test_sources = [
+    "tests",
 ]
 
-dependencies = [
-    "flet>=0.26.0",
-    "Pillow",
-    "rectangle-packer",
+requires = [
+    "toga>=0.4.0",
+    "Pillow>=10.0.0",
+    "rectpack>=0.2.1",
+]
+test_requires = [
+    "pytest",
 ]
 
-[tool.flet]
-# org name in reverse domain name notation, e.g. "com.mycompany".
-# Combined with project.name to build bundle ID for iOS and Android apps
-org = "com.mycompany"
-
-# project display name that is used as an app title on Android and iOS home screens,
-# shown in window titles and about app dialogs on desktop.
-product = "Efficient Photo Collage Arranger"
-
-# company name to display in about app dialogs
-company = "Flet"
-
-# copyright text to display in about app dialogs
-copyright = "Copyright (C) 2025 by Flet"
-icon = "assets/icon.png"
-name = "Efficient Photo Collage Arranger"
-description = 'A Photo Collage maker which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing.'
-
-[tool.flet.app]
-path = "src"
-
-[tool.uv]
-dev-dependencies = [
-    "flet[all]==0.28.3",
+[tool.briefcase.app.EfficientPhotoArranger.macOS]
+universal_build = true
+requires = [
+    "toga-cocoa~=0.5.0",
+    "std-nslog~=1.0.3",
 ]
 
-[tool.poetry]
-package-mode = false
+[tool.briefcase.app.EfficientPhotoArranger.linux]
+requires = [
+    "toga-gtk~=0.5.0",
+    "pygobject < 3.52.1",
+]
 
-[tool.poetry.group.dev.dependencies]
-flet = {extras = ["all"], version = "0.28.3"}
+[tool.briefcase.app.EfficientPhotoArranger.linux.system.debian]
+system_requires = [
+    "libcairo2-dev",
+    "libgirepository1.0-dev",
+]
+system_runtime_requires = [
+    "gir1.2-gtk-3.0",
+    "libgirepository-1.0-1",
+    "libcanberra-gtk3-module",
+]
 
-[tool.flet.android]
-# Android-specific settings (optional)
-package = "com.example.photo_arranger"
-version_code = 1
+[tool.briefcase.app.EfficientPhotoArranger.linux.system.rhel]
+system_requires = [
+    "cairo-gobject-devel",
+    "gobject-introspection-devel",
+]
+system_runtime_requires = [
+    "gobject-introspection",
+    "gtk3",
+    "libcanberra-gtk3",
+]
+
+[tool.briefcase.app.EfficientPhotoArranger.linux.system.suse]
+system_requires = [
+    "cairo-devel",
+    "gobject-introspection-devel",
+]
+system_runtime_requires = [
+    "gtk3",
+    "gobject-introspection", "typelib(Gtk) = 3.0",
+    "libcanberra-gtk3-module",
+]
+
+[tool.briefcase.app.EfficientPhotoArranger.linux.system.arch]
+system_requires = [
+    "cairo",
+    "gobject-introspection",
+    "gtk3",
+    "libcanberra",
+]
+system_runtime_requires = [
+    "gtk3",
+    "gobject-introspection-runtime",
+    "libcanberra",
+]
+
+[tool.briefcase.app.EfficientPhotoArranger.linux.appimage]
+manylinux = "manylinux_2_28"
+system_requires = [
+    "cairo-gobject-devel",
+    "gobject-introspection-devel",
+    "gtk3-devel",
+    "libcanberra-gtk3",
+    "PackageKit-gtk3-module",
+    "gvfs-client",
+]
+linuxdeploy_plugins = [
+    "DEPLOY_GTK_VERSION=3 gtk",
+]
+
+[tool.briefcase.app.EfficientPhotoArranger.linux.flatpak]
+flatpak_runtime = "org.gnome.Platform"
+flatpak_runtime_version = "48"
+flatpak_sdk = "org.gnome.Sdk"
+
+# System package configurations
+[tool.briefcase.app.EfficientPhotoArranger.linux.deb]
+category = "Graphics"
+icon = "src/EfficientPhotoArranger/resources/icon"
+maintainer = "Hadi F <62212402+hadi-f90@users.noreply.github.com>"
+section = "Graphics"
+priority = "optional"
+
+[tool.briefcase.app.EfficientPhotoArranger.linux.rpm]
+category = "Applications/Multimedia"
+icon = "src/EfficientPhotoArranger/resources/icon"
+summary = "Efficient Photo Arranger"
+license = "MIT"
+group = "Applications/Multimedia"
+changelog = [
+    "* {date:%a %b %d %Y} Hadi F <62212402+hadi-f90@users.noreply.github.com> - 0.0.1-1",
+    "- Initial release",
+]
+
+[tool.briefcase.app.EfficientPhotoArranger.windows]
+requires = [
+    "toga-winforms~=0.5.0",
+]
+
+[tool.briefcase.app.EfficientPhotoArranger.iOS]
+requires = [
+    "toga-iOS~=0.5.0",
+    "std-nslog~=1.0.3",
+]
+
+[tool.briefcase.app.EfficientPhotoArranger.android]
+requires = [
+    "toga-android~=0.5.0",
+]
+base_theme = "Theme.MaterialComponents.Light.DarkActionBar"
+build_gradle_dependencies = [
+    "com.google.android.material:material:1.12.0",
+]
+
+[tool.briefcase.app.EfficientPhotoArranger.web]
+requires = [
+    "toga-web~=0.5.0",
+]
+style_framework = "Shoelace v2.3"

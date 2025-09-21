@@ -277,14 +277,8 @@ class PhotoArranger(toga.App):
                         )
                         _base_name = str(os.path.basename(path))
                         # Create labels
-                        name_label = toga.Label((
-                            '\n'.join(
-                                _base_name[i - 10 : i + 8]
-                                for i in range(8, len(_base_name), 8)
-                            )
-                            if len(_base_name) > 1
-                            else _base_name
-                            ),
+                        name_label = toga.Label(
+                            (f"{_base_name[:5]}...{_base_name[-9:]}"),
                             style=Pack(width=150, margin=2),
                         )
                         dim_label = toga.Label(
@@ -802,7 +796,7 @@ class PhotoArranger(toga.App):
 
 
 def main():
-    return PhotoArranger("Photo Arranger", "com.example.photoarranger")
+    return PhotoArranger("Efficient Photo Arranger", "com.karrayan  .photoarranger")
 
 
 if __name__ == "__main__":
