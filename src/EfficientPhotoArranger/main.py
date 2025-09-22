@@ -234,7 +234,7 @@ class PhotoArranger(toga.App):
             file_dialog = toga.OpenFileDialog(
                 title="Select Photos",
                 multiple_select=True,
-                file_types=["jpeg", "png"],
+                file_types=["jpeg","jpg", "png"],
             )
             files = await self.main_window.dialog(file_dialog)
 
