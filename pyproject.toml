@@ -3,7 +3,7 @@ requires = ["flet>=0.26.0"]
 build-backend = "flet.build"
 
 [project]
-name = "Efficient Photo Collage Arranger"
+name = "Efficient Photo Arranger"
 version = "0.1.0"
 description = 'A Photo Collage maker which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing.'
 readme = "README.md"
@@ -21,19 +21,19 @@ dependencies = [
 [tool.flet]
 # org name in reverse domain name notation, e.g. "com.mycompany".
 # Combined with project.name to build bundle ID for iOS and Android apps
-org = "com.mycompany"
+org = "com.Karrayan"
 
 # project display name that is used as an app title on Android and iOS home screens,
 # shown in window titles and about app dialogs on desktop.
-product = "Efficient Photo Collage Arranger"
+product = "Efficient Photo Arranger"
 
 # company name to display in about app dialogs
-company = "Flet"
+company = "Karrayan Office Equipement Store"
 
 # copyright text to display in about app dialogs
 copyright = "Copyright (C) 2025 by Flet"
 icon = "assets/icon.png"
-name = "Efficient Photo Collage Arranger"
+name = "Efficient Photo Arranger"
 description = 'A Photo Collage maker which uses "rectangle packing" to cover maximum area possible with given photos to reduce paper waste when printing.'
 
 [tool.flet.app]
@@ -52,5 +52,5 @@ flet = {extras = ["all"], version = "0.28.3"}
 
 [tool.flet.android]
 # Android-specific settings (optional)
-package = "com.example.photo_arranger"
+package = "com.Karrayan.photo_arranger"
 version_code = 1
